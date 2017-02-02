@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Paras Jain, Connor Lindquist
+
 import asyncio
 import sys
 
@@ -71,16 +73,16 @@ async def run(robot: cozmo.robot.Robot):
             print("STATE: " + state)
             if state == 'searching':
                 await robot.set_head_angle(degrees(0)).wait_for_completed()
-                await robot.set_lift_height(0).wait_for_completed()
+                await robot.set_lift_height(1).wait_for_completed()
                 if ball_found is not None:
                     x, y, radius = ball_found
-                    await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
+                    # await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
                     state = 'lock-in'
                 else:
                     await robot.turn_in_place(degrees(60)).wait_for_completed()
             elif state == 'lock-in':
                 if ball_found is None:
-                    state = 'searching'
+                   state = 'searching'
                 else:
                     x, y, radius = ball_found
                     dx = 320/2 - x # positive = ball is on left
@@ -103,10 +105,12 @@ async def run(robot: cozmo.robot.Robot):
                     elif radius < 40:
                         await robot.drive_straight(distance_mm(100), speed_mmps(500)).wait_for_completed()
                     elif radius < 90:
-                        await robot.drive_straight(distance_mm(20), speed_mmps(300)).wait_for_completed()
+                        await robot.drive_straight(distance_mm(15), speed_mmps(300)).wait_for_completed()
                     else:
-                        await robot.drive_straight(distance_mm(30), speed_mmps(10)).wait_for_completed()
-                        await robot.play_anim_trigger(cozmo.anim.Triggers.PopAWheelieInitial).wait_for_completed()
+                        await robot.drive_straight(distance_mm(19), speed_mmps(10)).wait_for_completed()
+                        # await robot.play_anim_trigger(cozmo.anim.Triggers.PopAWheelieInitial).wait_for_completed()
+                        await robot.set_lift_height(0).wait_for_completed()
+
                         state = 'done'
                 else:
                     state = 'searching'
