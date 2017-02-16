@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 import find_ball
 import cozmo
-from cozmo.util import degrees, distance_mm, speed_mmps
 from cozmosearcher import CozmoSearcher
 
 try:
@@ -56,7 +55,7 @@ class BallAnnotator(cozmo.annotate.Annotator):
 
 
 ### Constants
-SEARCH_SPIN_SPEED = 50
+SEARCH_SPIN_SPEED = 75
 PURSUE_MIN_BALL_SIZE = 20
 PURSUE_MAX_BALL_SIZE = 90
 PURSUE_MIN_SPIN_SPEED = 0
@@ -74,14 +73,13 @@ def solve_for_kinematics(ballx, bally, ballr):
     # if ballx > 320 / 2:
     #     drive_left = -1
     # ballr_norm = max(PURSUE_MIN_BALL_SIZE, min(PURSUE_MAX_BALL_SIZE, ballr))
-    dx = ballx - 320 / 2
     # ball_size_percentage = 1.0 - float(ballr_norm - PURSUE_MIN_BALL_SIZE) / float(PURSUE_MAX_BALL_SIZE - PURSUE_MIN_BALL_SIZE)
-    #
     # forward_velocity = ball_size_percentage * (PURSUE_MAX_FORWARD_SPEED - PURSUE_MIN_FORWARD_SPEED) + PURSUE_MIN_FORWARD_SPEED
     # angular_velocity = PURSUE_MIN_SPIN_SPEED + float(dx) / float(320 / 2) * (PURSUE_MAX_SPIN_SPEED - PURSUE_MIN_SPIN_SPEED)
-    #
     # phi1 = forward_velocity + -1 * drive_left * angular_velocity
     # phi2 = forward_velocity + drive_left * angular_velocity
+
+    dx = ballx - 320 / 2
 
     phi1 = dx / 320 * 100 + 100
     phi2 = -dx / 320 * 100 + 100
@@ -108,10 +106,10 @@ def run(robot: cozmo.robot.Robot):
             BallAnnotator.ball = ball_found
 
             if fsm.state == "search":
-                if fsm.lastSeen == None or fsm.lastSeen[0] < 320 / 2:
-                    robot.drive_wheels(-SEARCH_SPIN_SPEED, SEARCH_SPIN_SPEED)
-                else:
+                if fsm.lastSeen == None or fsm.lastSeen[0] > 320 / 2:
                     robot.drive_wheels(SEARCH_SPIN_SPEED, -SEARCH_SPIN_SPEED)
+                else:
+                    robot.drive_wheels(-SEARCH_SPIN_SPEED, SEARCH_SPIN_SPEED)
 
                 if ball_found is not None:
                     samples_missing_ball = 0
@@ -142,7 +140,6 @@ def run(robot: cozmo.robot.Robot):
 
                     ballx, bally, ballr = ball_found
                     phi1, phi2 = solve_for_kinematics(ballx, bally, ballr)
-                    # print("driving " + str(phi1) + " " + str(phi2) + " because ball=" + str(ball_found))
                     robot.drive_wheels(phi1, phi2)
 
             elif fsm.state == "touch":
@@ -159,7 +156,6 @@ def run(robot: cozmo.robot.Robot):
         robot.drive_wheels(0,0)
     except cozmo.RobotBusy as e:
         print(e)
-
 
 
 if __name__ == '__main__':

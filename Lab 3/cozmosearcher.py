@@ -1,6 +1,7 @@
 from transitions import Machine
 from cozmo.util import degrees, distance_mm, speed_mmps
 
+# Paras Jain, Connor Lindquist
 
 class CozmoSearcher(object):
     states = ['init', 'search', 'pursue', 'touch', 'done']

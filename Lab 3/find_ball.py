@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # I used OpenCV2 documentation for python for this lab
-# Author: Paras Jain
+# Paras Jain, Connor Lindquist
 
 import cv2
 import sys
