@@ -29,10 +29,14 @@ def find_ball(opencv_image, debug=False):
     ball = None
 
     image = opencv_image.copy()
-    image = cv2.blur(image, (3, 3))
-    image = cv2.medianBlur(image, 9)
-    image = cv2.GaussianBlur(image, (13, 13), 2, 2)
-    circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, 100, param1=103, param2=27)
+
+    image = cv2.GaussianBlur(image, (9, 9), 1, 1)
+    image = cv2.normalize(opencv_image, opencv_image, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+
+    image = cv2.medianBlur(image, 13)
+    image = cv2.GaussianBlur(image, (13, 13), 2.5, 2.5)
+
+    circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, 50, param1=150, param2=20)
     if circles is None:
         return None
     else:

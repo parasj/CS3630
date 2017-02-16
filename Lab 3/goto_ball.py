@@ -15,12 +15,22 @@ try:
 except ImportError:
     sys.exit('run `pip3 install --user Pillow numpy` to run this example')
 
+class StateAnnotator(cozmo.annotate.Annotator):
+    state = "init"
+
+    def apply(self, image, scale):
+        if StateAnnotator.state is not None:
+            d = ImageDraw.Draw(image)
+            bounds = (0, 0, image.width, image.height)
+            text = cozmo.annotate.ImageText('STATE %s            ' % StateAnnotator.state, color='red')
+            text.render(d, bounds)
+
 class BatteryAnnotator(cozmo.annotate.Annotator):
     def apply(self, image, scale):
         d = ImageDraw.Draw(image)
         bounds = (0, 0, image.width, image.height)
         batt = self.world.robot.battery_voltage
-        text = cozmo.annotate.ImageText('BATT %.1fv' % batt, color='green')
+        text = cozmo.annotate.ImageText('BATT %.1fv' % batt, color='yellow')
         text.render(d, bounds)
 
 class BallAnnotator(cozmo.annotate.Annotator):
@@ -46,34 +56,35 @@ class BallAnnotator(cozmo.annotate.Annotator):
 
 
 ### Constants
-SEARCH_SPIN_SPEED = 75
+SEARCH_SPIN_SPEED = 50
 PURSUE_MIN_BALL_SIZE = 20
 PURSUE_MAX_BALL_SIZE = 90
 PURSUE_MIN_SPIN_SPEED = 0
-PURSUE_MAX_SPIN_SPEED = 75
-PURSUE_MIN_FORWARD_SPEED = 5
-PURSUE_MAX_FORWARD_SPEED = 75
+PURSUE_MAX_SPIN_SPEED = 150
+PURSUE_MIN_FORWARD_SPEED = 10
+PURSUE_MAX_FORWARD_SPEED = 150
 
 
 
 
 def solve_for_kinematics(ballx, bally, ballr):
-    phi1 = 0
-    phi2 = 0
+    # phi1 = 0
+    # phi2 = 0
+    # drive_left = 1
+    # if ballx > 320 / 2:
+    #     drive_left = -1
+    # ballr_norm = max(PURSUE_MIN_BALL_SIZE, min(PURSUE_MAX_BALL_SIZE, ballr))
+    dx = ballx - 320 / 2
+    # ball_size_percentage = 1.0 - float(ballr_norm - PURSUE_MIN_BALL_SIZE) / float(PURSUE_MAX_BALL_SIZE - PURSUE_MIN_BALL_SIZE)
+    #
+    # forward_velocity = ball_size_percentage * (PURSUE_MAX_FORWARD_SPEED - PURSUE_MIN_FORWARD_SPEED) + PURSUE_MIN_FORWARD_SPEED
+    # angular_velocity = PURSUE_MIN_SPIN_SPEED + float(dx) / float(320 / 2) * (PURSUE_MAX_SPIN_SPEED - PURSUE_MIN_SPIN_SPEED)
+    #
+    # phi1 = forward_velocity + -1 * drive_left * angular_velocity
+    # phi2 = forward_velocity + drive_left * angular_velocity
 
-    drive_left = 1
-    if ballx > 320 / 2:
-        drive_left = -1
-
-    ballr_norm = max(PURSUE_MIN_BALL_SIZE, min(PURSUE_MAX_BALL_SIZE, ballr))
-
-    dx = abs(ballx - 320/2)
-    ball_size_percentage = 1.0 - float(ballr_norm - PURSUE_MIN_BALL_SIZE) / float(PURSUE_MAX_BALL_SIZE - PURSUE_MIN_BALL_SIZE)
-
-    forward_velocity = ball_size_percentage * (PURSUE_MAX_FORWARD_SPEED - PURSUE_MIN_FORWARD_SPEED) + PURSUE_MIN_FORWARD_SPEED
-
-    phi1 = forward_velocity
-    phi2 = forward_velocity
+    phi1 = dx / 320 * 100 + 100
+    phi2 = -dx / 320 * 100 + 100
 
     return (int(phi1), int(phi2))
 
@@ -81,10 +92,16 @@ def solve_for_kinematics(ballx, bally, ballr):
 def run(robot: cozmo.robot.Robot):
     robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
     robot.world.image_annotator.add_annotator('ball', BallAnnotator)
+    robot.world.image_annotator.add_annotator('state',  StateAnnotator)
 
     fsm = CozmoSearcher(robot)
     try:
+        samples_missing_ball = 0
+        samples_big_ball = 0
+
         while True:
+            StateAnnotator.state = fsm.state
+
             event = robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
             opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
             ball_found = find_ball.find_ball(opencv_image)
@@ -97,25 +114,46 @@ def run(robot: cozmo.robot.Robot):
                     robot.drive_wheels(SEARCH_SPIN_SPEED, -SEARCH_SPIN_SPEED)
 
                 if ball_found is not None:
+                    samples_missing_ball = 0
+                    samples_big_ball = 0
                     robot.drive_wheels(0, 0)
                     fsm.save_ball_location(ball_found)
                     fsm.ball_found()
 
             elif fsm.state == "pursue": # check ball size and if big then go to atBall
                 if ball_found is None:
-                    fsm.ball_lost()
+                    samples_missing_ball += 1
+                    samples_big_ball = 0
+
+                    if samples_missing_ball > 10:
+                        robot.drive_wheels(0, 0)
+                        fsm.ball_lost()
+                elif ball_found[2] > 90 and abs(ball_found[0] - 320/2) < 320/4:
+                    samples_missing_ball = 0
+                    samples_big_ball += 1
+
+                    robot.drive_wheels(0, 0)
+
+                    if samples_big_ball > 1:
+                        fsm.at_ball()
                 else:
+                    samples_missing_ball = 0
                     fsm.save_ball_location(ball_found)
 
                     ballx, bally, ballr = ball_found
                     phi1, phi2 = solve_for_kinematics(ballx, bally, ballr)
-                    print("driving " + str(phi1) + " " + str(phi2) + " because ball=" + str(ball_found))
-
+                    # print("driving " + str(phi1) + " " + str(phi2) + " because ball=" + str(ball_found))
                     robot.drive_wheels(phi1, phi2)
 
-            # elif cozmo.state == "touch":
-            #     # ram it
-            #     robot.set_lift_height(0).wait_for_completed()
+            elif fsm.state == "touch":
+                robot.set_lift_height(0).wait_for_completed()
+                robot.set_lift_height(1).wait_for_completed()
+                robot.set_lift_height(0).wait_for_completed()
+                fsm.finish()
+
+            elif fsm.state == "done":
+                robot.set_lift_height(0).wait_for_completed()
+
     except KeyboardInterrupt:
         print("Exit requested by user")
         robot.drive_wheels(0,0)
