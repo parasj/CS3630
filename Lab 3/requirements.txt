@@ -1,0 +1,4 @@
+numpy
+cozmo
+cv2
+transitions

@@ -2,24 +2,19 @@
 
 # Paras Jain, Connor Lindquist
 
-from transitions import Machine
-import asyncio
 import sys
-
 import cv2
 import numpy as np
 import find_ball
-
 import cozmo
 from cozmo.util import degrees, distance_mm, speed_mmps
+from cozmosearcher import CozmoSearcher
 
 try:
     from PIL import ImageDraw, ImageFont
 except ImportError:
     sys.exit('run `pip3 install --user Pillow numpy` to run this example')
 
-
-# Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
     def apply(self, image, scale):
         d = ImageDraw.Draw(image)
@@ -28,9 +23,7 @@ class BatteryAnnotator(cozmo.annotate.Annotator):
         text = cozmo.annotate.ImageText('BATT %.1fv' % batt, color='green')
         text.render(d, bounds)
 
-# Define a decorator as a subclass of Annotator; displays the ball
 class BallAnnotator(cozmo.annotate.Annotator):
-
     ball = None
 
     def apply(self, image, scale):
@@ -52,103 +45,78 @@ class BallAnnotator(cozmo.annotate.Annotator):
             BallAnnotator.ball = None
 
 
-async def run(robot: cozmo.robot.Robot):
-    '''The run method runs once the Cozmo SDK is connected.'''
+### Constants
+SEARCH_SPIN_SPEED = 75
+PURSUE_MIN_BALL_SIZE = 20
+PURSUE_MAX_BALL_SIZE = 90
+PURSUE_MIN_SPIN_SPEED = 0
+PURSUE_MAX_SPIN_SPEED = 75
+PURSUE_MIN_FORWARD_SPEED = 5
+PURSUE_MAX_FORWARD_SPEED = 75
 
-    #add annotators for battery level and ball bounding box
+
+
+
+def solve_for_kinematics(ballx, bally, ballr):
+    phi1 = 0
+    phi2 = 0
+
+    drive_left = 1
+    if ballx > 320 / 2:
+        drive_left = -1
+
+    ballr_norm = max(PURSUE_MIN_BALL_SIZE, min(PURSUE_MAX_BALL_SIZE, ballr))
+
+    dx = abs(ballx - 320/2)
+    ball_size_percentage = 1.0 - float(ballr_norm - PURSUE_MIN_BALL_SIZE) / float(PURSUE_MAX_BALL_SIZE - PURSUE_MIN_BALL_SIZE)
+
+    forward_velocity = ball_size_percentage * (PURSUE_MAX_FORWARD_SPEED - PURSUE_MIN_FORWARD_SPEED) + PURSUE_MIN_FORWARD_SPEED
+
+    phi1 = forward_velocity
+    phi2 = forward_velocity
+
+    return (int(phi1), int(phi2))
+
+
+def run(robot: cozmo.robot.Robot):
     robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
     robot.world.image_annotator.add_annotator('ball', BallAnnotator)
 
-    cozmo = CozmoSearcher()
+    fsm = CozmoSearcher(robot)
     try:
         while True:
-            if cozmo.state == search:
-                if cozmo.lastSeen == None:
-                    cozmo.searchRight
-                elif cozmo.lastSeen = -1:
-                    cozmo.searchLeft
-                elif cozmo.lastSeen = 1:
-                    cozmo.searchRight
-            elif cozmo.state == search.left or cozmo.state == search.right:
-                if cozmo.state == search.left:
-                    await robot.drive_wheels(25,-25)
+            event = robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
+            opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
+            ball_found = find_ball.find_ball(opencv_image)
+            BallAnnotator.ball = ball_found
+
+            if fsm.state == "search":
+                if fsm.lastSeen == None or fsm.lastSeen[0] < 320 / 2:
+                    robot.drive_wheels(-SEARCH_SPIN_SPEED, SEARCH_SPIN_SPEED)
                 else:
-                    await robot.drive_wheels(25,-25)
-                # check for the ball and change state
-            elif cozmo.state == pursue:
-                phi1 = 
-                phi2 = 
-                await robot.drive_wheels(phi1, phi2)
+                    robot.drive_wheels(SEARCH_SPIN_SPEED, -SEARCH_SPIN_SPEED)
 
-                # check ball size and if big then go to atBall
-            elif cozmo.state == touch:
-                # ram it
+                if ball_found is not None:
+                    robot.drive_wheels(0, 0)
+                    fsm.save_ball_location(ball_found)
+                    fsm.ball_found()
 
+            elif fsm.state == "pursue": # check ball size and if big then go to atBall
+                if ball_found is None:
+                    fsm.ball_lost()
+                else:
+                    fsm.save_ball_location(ball_found)
 
-    #     state = 'searching'
+                    ballx, bally, ballr = ball_found
+                    phi1, phi2 = solve_for_kinematics(ballx, bally, ballr)
+                    print("driving " + str(phi1) + " " + str(phi2) + " because ball=" + str(ball_found))
 
-    #     while True:
-    #         # find a ball
-    #         event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
-    #         opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
-    #         ball_found = find_ball.find_ball(opencv_image)
-    #         BallAnnotator.ball = ball_found
+                    robot.drive_wheels(phi1, phi2)
 
-    #         print(ball_found)
-
-    #         print("STATE: " + state)
-    #         if state == 'searching':
-    #             await robot.set_head_angle(degrees(0)).wait_for_completed()
-    #             await robot.set_lift_height(1).wait_for_completed()
-    #             if ball_found is not None:
-    #                 x, y, radius = ball_found
-    #                 # await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
-    #                 state = 'lock-in'
-    #             else:
-    #                 await robot.turn_in_place(degrees(60)).wait_for_completed()
-    #         elif state == 'lock-in':
-    #             if ball_found is None:
-    #                state = 'searching'
-    #             else:
-    #                 x, y, radius = ball_found
-    #                 dx = 320/2 - x # positive = ball is on left
-    #                 deg_to_turn = dx / (320.0/2.0) * 30
-                    
-    #                 if deg_to_turn <= 10 and deg_to_turn >= -10:
-    #                     state = 'drive'
-    #                 await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
-    #         elif state == 'drive':
-    #             if ball_found is not None:
-    #                 x, y, radius = ball_found
-                    
-    #                 dx = 320/2 - x # positive = ball is on left
-    #                 deg_to_turn = dx / (320.0/2.0) * 30
-    #                 if deg_to_turn < -5 or deg_to_turn > 5:
-    #                     await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
-
-    #                 if radius < 20:
-    #                     await robot.drive_straight(distance_mm(250), speed_mmps(1000)).wait_for_completed()
-    #                 elif radius < 40:
-    #                     await robot.drive_straight(distance_mm(100), speed_mmps(500)).wait_for_completed()
-    #                 elif radius < 90:
-    #                     await robot.drive_straight(distance_mm(15), speed_mmps(300)).wait_for_completed()
-    #                 else:
-    #                     await robot.drive_straight(distance_mm(19), speed_mmps(10)).wait_for_completed()
-    #                     # await robot.play_anim_trigger(cozmo.anim.Triggers.PopAWheelieInitial).wait_for_completed()
-    #                     await robot.set_lift_height(0).wait_for_completed()
-
-    #                     state = 'done'
-    #             else:
-    #                 state = 'searching'
-    #         elif state == 'done':
-    #             # await robot.turn_in_place(degrees(180)).wait_for_completed()
-    #             # await robot.drive_straight(distance_mm(200), speed_mmps(100)).wait_for_completed()
-    #             # state = 'searching'
-    #             return
-
-
+            # elif cozmo.state == "touch":
+            #     # ram it
+            #     robot.set_lift_height(0).wait_for_completed()
     except KeyboardInterrupt:
-        print("")
         print("Exit requested by user")
         robot.drive_wheels(0,0)
     except cozmo.RobotBusy as e:
