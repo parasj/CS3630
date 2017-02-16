@@ -60,7 +60,7 @@ class BallAnnotator(cozmo.annotate.Annotator):
 
 
 ### Constants
-SEARCH_SPIN_SPEED = 75
+SEARCH_SPIN_SPEED = 50
 PURSUE_MIN_BALL_SIZE = 20
 PURSUE_MAX_BALL_SIZE = 90
 PURSUE_MIN_SPIN_SPEED = 0
