@@ -24,21 +24,23 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="goto_ball.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="goto_ball.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/goto_ball.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="120">
-              <caret line="8" column="12" selection-start-line="8" selection-start-column="12" selection-end-line="8" selection-end-column="12" />
-              <folding />
+            <state relative-caret-position="910">
+              <caret line="145" column="52" selection-start-line="145" selection-start-column="52" selection-end-line="145" selection-end-column="52" />
+              <folding>
+                <element signature="e#56#66#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="cozmosearcher.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="cozmosearcher.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/cozmosearcher.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="45">
-              <caret line="3" column="30" selection-start-line="3" selection-start-column="30" selection-end-line="3" selection-end-column="30" />
+            <state relative-caret-position="690">
+              <caret line="46" column="85" selection-start-line="46" selection-start-column="83" selection-end-line="46" selection-end-column="85" />
               <folding>
                 <element signature="e#0#31#0" expanded="true" />
               </folding>
@@ -71,9 +73,9 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/_gotoball.py" />
-        <option value="$PROJECT_DIR$/cozmosearcher.py" />
         <option value="$PROJECT_DIR$/find_ball.py" />
         <option value="$PROJECT_DIR$/goto_ball.py" />
+        <option value="$PROJECT_DIR$/cozmosearcher.py" />
       </list>
     </option>
   </component>
@@ -454,24 +456,8 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1275">
           <caret line="110" column="38" selection-start-line="110" selection-start-column="38" selection-end-line="110" selection-end-column="38" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/requirements.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cozmosearcher.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="45">
-          <caret line="3" column="30" selection-start-line="3" selection-start-column="30" selection-end-line="3" selection-end-column="30" />
           <folding>
-            <element signature="e#0#31#0" expanded="true" />
+            <element signature="e#56#66#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -494,11 +480,31 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/requirements.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/goto_ball.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="12" selection-start-line="8" selection-start-column="12" selection-end-line="8" selection-end-column="12" />
-          <folding />
+        <state relative-caret-position="910">
+          <caret line="145" column="52" selection-start-line="145" selection-start-column="52" selection-end-line="145" selection-end-column="52" />
+          <folding>
+            <element signature="e#56#66#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cozmosearcher.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="690">
+          <caret line="46" column="85" selection-start-line="46" selection-start-column="83" selection-end-line="46" selection-end-column="85" />
+          <folding>
+            <element signature="e#0#31#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

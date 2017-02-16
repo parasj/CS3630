@@ -1,5 +1,5 @@
 from transitions import Machine
-from cozmo.util import degrees, distance_mm, speed_mmps
+from cozmo.util import degrees
 
 # Paras Jain, Connor Lindquist
 
@@ -43,7 +43,8 @@ class CozmoSearcher(object):
 
     def print_state(self):
         print("-> Entering state " + str(self.state))
-        self.robot.say_text(self.state, use_cozmo_voice=False, duration_scalar=0.25, voice_pitch=1).wait_for_completed()
+        print("\a")
+        # self.robot.say_text(self.state, use_cozmo_voice=False, duration_scalar=0.25, voice_pitch=1).wait_for_completed()
 
     def exit_init(self):
         print("Initializing at " + str(self.state))
