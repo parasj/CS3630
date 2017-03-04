@@ -84,8 +84,8 @@ def solve_for_kinematics(ballx, bally, ballr):
 
     dx = ballx - 320 / 2
 
-    phi1 = dx / 320 * 200 + 200
-    phi2 = -dx / 320 * 200 + 200
+    phi1 = dx / 320 * 125 + 125
+    phi2 = -dx / 320 * 125 + 125
 
     return (int(phi1), int(phi2))
 
