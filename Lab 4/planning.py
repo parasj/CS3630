@@ -10,7 +10,6 @@ import math
 import cozmo
 
 
-
 def astar(grid, heuristic):
     """Perform the A* search algorithm on a defined grid
 
@@ -18,8 +17,34 @@ def astar(grid, heuristic):
         grid -- CozGrid instance to perform search on
         heuristic -- supplied heuristic function
     """
-        
-    pass # Your code here
+    goal = grid.getGoals()[0]
+
+    front = PriorityQueue()
+    front.put((0 + heuristic(grid.getStart(), goal), 0, (grid.getStart(), [grid.getStart()])))
+    grid.addVisited(grid.getStart())
+
+    costs = {}
+    costs[grid.getStart()] = 0
+
+    while not front.empty():
+        node = front.get()
+        cost, counter, data = node
+        cell, path = data
+
+        grid.addVisited(cell)
+        if cell == goal:
+            grid.setPath(path)
+            return
+        else:
+            for neighborWithCost in grid.getNeighbors(cell):
+                neighbor, cost = neighborWithCost
+                newCost = costs[cell] + cost
+                if neighbor not in costs or newCost < costs[neighbor]:
+                    costs[neighbor] = newCost
+                    priority = newCost + heuristic(neighbor, goal)
+                    newpath = path[:]
+                    newpath.append(neighbor)
+                    front.put((priority, counter + 1, (neighbor, newpath)))
 
 
 def heuristic(current, goal):
@@ -29,8 +54,9 @@ def heuristic(current, goal):
         current -- current cell
         goal -- desired goal cell
     """
-        
-    return 1 # Your code here
+    currx, curry = current
+    goalx, goaly = goal
+    return pow(pow(goaly - curry, 2) + pow(goalx - currx, 2), 0.5)
 
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
