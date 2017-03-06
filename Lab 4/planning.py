@@ -66,6 +66,16 @@ def updateGridWithCubes(cubes, grid, robot: cozmo.robot.Robot, currentPos):
             # x, y, z = currentPos
             # dx, dy, dz = (cube.x - x)/25, (cube.y - y)/25, cube.z - z
 
+def poseToGrid(pose: cozmo.util.Pose):
+    pos = pose.position()
+    x = pos.x / 25
+    y = pos.y / 25
+    return (x, y)
+
+def init(robot: cozmo.robot.Robot):
+    robot.move_lift(-3).wait_for_completed()
+    robot.set_head_angle(degrees(0)).wait_for_completed()
+
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
     """Cozmo search behavior. See assignment document for details
@@ -78,11 +88,15 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         Arguments:
         robot -- cozmo.robot.Robot instance, supplied by cozmo.run_program
     """
-    robot.move_lift(-3)
-    robot.set_head_angle(degrees(0)).wait_for_completed()
+
+
     global grid, stopevent
+
     state = "start"
     currentPos = (0,0,0)
+
+    init(robot)
+
     while not stopevent.is_set():
         if state == "start":
             cubes = None
