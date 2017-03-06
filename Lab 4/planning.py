@@ -110,6 +110,18 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 state = "drive"
                 print("drive")
 
+        if state == "drive":
+            cubes = list(robot.world.visible_objects)
+            if cubes is not None and len(cubes) > 0:
+                for cube in cubes:
+                    x = world.light_cubes[cozmo.objects.LightCube1Id].x/25
+                    y = world.light_cubes[cozmo.objects.LightCube1Id].y/25
+                    if world.light_cubes[cozmo.objects.LightCube1Id].object_id == 1:
+                        if grid.getGoals is  None:
+                            grid.addGoal(self.grid, (x,y))
+                    else:
+                        grid.addObstacle(self.grid, (x,y))
+            astar(self.grid, heuristic)
 
 
 
