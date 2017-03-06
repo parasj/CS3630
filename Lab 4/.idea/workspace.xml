@@ -24,11 +24,21 @@
       <file leaf-file-name="planning.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/planning.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="138">
-              <caret line="72" column="17" selection-start-line="72" selection-start-column="17" selection-end-line="72" selection-end-column="17" />
+            <state relative-caret-position="363">
+              <caret line="77" column="51" selection-start-line="77" selection-start-column="51" selection-end-line="77" selection-end-column="51" />
               <folding>
                 <element signature="e#22#36#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="grid.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/grid.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="258">
+              <caret line="152" column="8" selection-start-line="152" selection-start-column="8" selection-end-line="152" selection-end-column="8" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -179,10 +189,34 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2016.2/python_stubs/1437855905/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="258">
+          <caret line="3546" column="8" selection-start-line="3546" selection-start-column="8" selection-end-line="3546" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Python/3.6/lib/python/site-packages/cozmo/world.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="111">
+          <caret line="152" column="69" selection-start-line="152" selection-start-column="69" selection-end-line="152" selection-end-column="69" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/grid.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="258">
+          <caret line="152" column="8" selection-start-line="152" selection-start-column="8" selection-end-line="152" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/planning.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="138">
-          <caret line="72" column="17" selection-start-line="72" selection-start-column="17" selection-end-line="72" selection-end-column="17" />
+        <state relative-caret-position="363">
+          <caret line="77" column="51" selection-start-line="77" selection-start-column="51" selection-end-line="77" selection-end-column="51" />
           <folding>
             <element signature="e#22#36#0" expanded="true" />
           </folding>
