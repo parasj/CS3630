@@ -59,18 +59,31 @@ def heuristic(current, goal):
     goalx, goaly = goal
     return pow(pow(goaly - curry, 2) + pow(goalx - currx, 2), 0.5)
 
-def updateGridWithCubes(cubes, grid, robot: cozmo.robot.Robot, currentPos):
+def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
+    cubes = []
+
+    try:
+        cubes = list(robot.world.visible_objects)
+    except asyncio.TimeoutError:
+        print("Didn't find a cube")
+        return
+
     for cube in cubes:
-        if cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
-            print("found cube1", str(cube))
-            # x, y, z = currentPos
-            # dx, dy, dz = (cube.x - x)/25, (cube.y - y)/25, cube.z - z
+        if len(grid.getGoals()) == 0 and cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
+            print("found cube1, marking goal", str(cube))
+            grid.addGoal(poseToGrid(cube.pose))
+            grid.addObstacle(poseToGrid(cube.pose))
+            cube.set_lights(cozmo.lights.green_light.flash())
+        else: # update obstacle
+            grid.addObstacle(poseToGrid(cube.pose))
+
+
 
 def poseToGrid(pose: cozmo.util.Pose):
     pos = pose.position()
     x = pos.x / 25
     y = pos.y / 25
-    return (x, y)
+    return x, y
 
 def init(robot: cozmo.robot.Robot):
     robot.move_lift(-3)
@@ -99,7 +112,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     while not stopevent.is_set():
         if state == "go_to_center":
-            updateMap(robot, grid)
+            updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
                 print("Didn't find goal cube")
                 if in_center(robot):
@@ -109,6 +122,15 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             else:
                 state = "drive"
                 print("drive")
+
+        elif state == "search":
+            updateGrid(robot, grid)
+            if len(grid.getGoals()) == 0:
+                print("Didn't find goal cube")
+                robot.drive_wheels(10, -10)
+            else:
+                state = "drive"
+                print("Drive")
 
 
 
