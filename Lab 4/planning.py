@@ -2,13 +2,14 @@
 #author1:
 #author2:
 
+import asyncio
 from grid import *
 from visualizer import *
 import threading
 from queue import PriorityQueue
 import math
 import cozmo
-
+from cozmo.util import degrees, distance_mm
 
 def astar(grid, heuristic):
     """Perform the A* search algorithm on a defined grid
@@ -58,6 +59,13 @@ def heuristic(current, goal):
     goalx, goaly = goal
     return pow(pow(goaly - curry, 2) + pow(goalx - currx, 2), 0.5)
 
+def updateGridWithCubes(cubes, grid, robot: cozmo.robot.Robot, currentPos):
+    for cube in cubes:
+        if cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
+            print("found cube1", str(cube))
+            # x, y, z = currentPos
+            # dx, dy, dz = (cube.x - x)/25, (cube.y - y)/25, cube.z - z
+
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
     """Cozmo search behavior. See assignment document for details
@@ -70,11 +78,40 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         Arguments:
         robot -- cozmo.robot.Robot instance, supplied by cozmo.run_program
     """
-        
+    robot.move_lift(-3)
+    robot.set_head_angle(degrees(0)).wait_for_completed()
     global grid, stopevent
-    
+    state = "start"
+    currentPos = (0,0,0)
     while not stopevent.is_set():
-        pass # Your code here
+        if state == "start":
+            cubes = None
+            try:
+                cubes = list(robot.world.visible_objects)
+                updateGridWithCubes(cubes, grid, robot, currentPos)
+                print(cubes)
+            except asyncio.TimeoutError:
+                print("Didn't find a cube")
+                # no cube
+                state = "go_to_center"
+                print("state: go_to_center")
+            if cubes is not None and len(cubes) > 0:
+                state = "drive"
+
+
+
+        elif state == "go_to_center":
+            cubes = None
+            try:
+                cubes = list(robot.world.visible_objects)
+                print(cubes)
+            except asyncio.TimeoutError:
+                print("Didn't find a cube")
+            if cubes is not None and len(cubes) > 0:
+                state = "drive"
+                print("drive")
+
+
 
 
 ######################## DO NOT MODIFY CODE BELOW THIS LINE ####################################
