@@ -83,15 +83,22 @@ def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
 
 
 def poseToGrid(pose: cozmo.util.Pose):
-    pos = pose.position()
-    x = pos.x / 25
-    y = pos.y / 25
+    pos = pose.position
+    x = (pos.x / 25) + 3
+    y = (pos.y / 25) + 2
+    print(x, y)
     return x, y
 
 def init(robot: cozmo.robot.Robot):
     robot.move_lift(-3)
     robot.set_head_angle(degrees(0)).wait_for_completed()
 
+
+def in_center(robot: cozmo.robot.Robot):
+    return True
+
+def robot_go_to(robot: cozmo.robot.Robot, pos):
+    return True
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
     """Cozmo search behavior. See assignment document for details
@@ -108,7 +115,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     global grid, stopevent
 
-    state = "go_to_center"
+    state = "search"
     currentPos = (0,0,0)
 
     init(robot)
@@ -117,7 +124,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         if state == "go_to_center":
             updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
-                print("Didn't find goal cube")
                 if in_center(robot):
                     state = "search"
                 else:
@@ -128,22 +134,21 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
         elif state == "drive":
             cubes = list(robot.world.visible_objects)
-            if cubes is not None and len(cubes) > 0:
-                for cube in cubes:
-                    x = world.light_cubes[cozmo.objects.LightCube1Id].x/25
-                    y = world.light_cubes[cozmo.objects.LightCube1Id].y/25
-                    if world.light_cubes[cozmo.objects.LightCube1Id].object_id == 1:
-                        if grid.getGoals is  None:
-                            grid.addGoal(self.grid, (x,y))
-                    else:
-                        grid.addObstacle(self.grid, (x,y))
-            astar(self.grid, heuristic)
+            # if cubes is not None and len(cubes) > 0:
+            #     for cube in cubes:
+            #         x = world.light_cubes[cozmo.objects.LightCube1Id].x/25
+            #         y = world.light_cubes[cozmo.objects.LightCube1Id].y/25
+            #         if world.light_cubes[cozmo.objects.LightCube1Id].object_id == 1:
+            #             if grid.getGoals is  None:
+            #                 grid.addGoal(self.grid, (x,y))
+            #         else:
+            #             grid.addObstacle(self.grid, (x,y))
+            # astar(self.grid, heuristic)
 
         elif state == "search":
             updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
-                print("Didn't find goal cube")
-                robot.drive_wheels(10, -10)
+                robot.drive_wheels(30, -30)
             else:
                 state = "drive"
                 print("Drive")
