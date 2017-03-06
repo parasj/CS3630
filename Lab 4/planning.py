@@ -73,7 +73,7 @@ def poseToGrid(pose: cozmo.util.Pose):
     return (x, y)
 
 def init(robot: cozmo.robot.Robot):
-    robot.move_lift(-3).wait_for_completed()
+    robot.move_lift(-3)
     robot.set_head_angle(degrees(0)).wait_for_completed()
 
 
@@ -92,36 +92,21 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     global grid, stopevent
 
-    state = "start"
+    state = "go_to_center"
     currentPos = (0,0,0)
 
     init(robot)
 
     while not stopevent.is_set():
-        if state == "start":
-            cubes = None
-            try:
-                cubes = list(robot.world.visible_objects)
-                updateGridWithCubes(cubes, grid, robot, currentPos)
-                print(cubes)
-            except asyncio.TimeoutError:
-                print("Didn't find a cube")
-                # no cube
-                state = "go_to_center"
-                print("state: go_to_center")
-            if cubes is not None and len(cubes) > 0:
-                state = "drive"
-
-
-
-        elif state == "go_to_center":
-            cubes = None
-            try:
-                cubes = list(robot.world.visible_objects)
-                print(cubes)
-            except asyncio.TimeoutError:
-                print("Didn't find a cube")
-            if cubes is not None and len(cubes) > 0:
+        if state == "go_to_center":
+            updateMap(robot, grid)
+            if len(grid.getGoals()) == 0:
+                print("Didn't find goal cube")
+                if in_center(robot):
+                    state = "search"
+                else:
+                    robot_go_to(robot, (13, 9))
+            else:
                 state = "drive"
                 print("drive")
 
