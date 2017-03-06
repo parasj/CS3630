@@ -70,12 +70,14 @@ def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
 
     for cube in cubes:
         if len(grid.getGoals()) == 0 and cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
-            print("found cube1, marking goal", str(cube))
+            print("found cube1, marking goal", poseToGrid(cube.pose), str(cube))
             grid.addGoal(poseToGrid(cube.pose))
             grid.addObstacle(poseToGrid(cube.pose))
             cube.set_lights(cozmo.lights.green_light.flash())
         else: # update obstacle
+            print("found obstacle at", str(poseToGrid(cube.pose)), str(cube))
             grid.addObstacle(poseToGrid(cube.pose))
+            cube.set_lights(cozmo.lights.red_light.flash())
 
 
 
