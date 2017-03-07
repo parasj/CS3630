@@ -61,7 +61,8 @@ def heuristic(current, goal):
 
 def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
     cubes = []
-    grid.addVisited(poseToGrid(robot.pose))
+    grid.setStart(poseToGrid(robot.pose))
+    # grid.addVisited(poseToGrid(robot.pose))
     try:
         cubes = list(robot.world.visible_objects)
     except asyncio.TimeoutError:
@@ -82,8 +83,8 @@ def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
 
 def poseToGrid(pose: cozmo.util.Pose):
     pos = pose.position
-    x = (pos.x / 25) + 3
-    y = (pos.y / 25) + 2
+    x = (pos.x / 25.6) + 3
+    y = (pos.y / 25.6) + 2
     print(x, y)
     return x, y
 
@@ -100,37 +101,39 @@ def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
     oldGoals = grid.getGoals()
     grid.clearGoals()
     grid.addGoal(pos)
+    grid.clearVisited()
     astar(grid, heuristic)
     path = grid.getPath()
     if len(path) > 1:
-        nx, ny = path[3]
-        rx, ry = poseToGrid(robot.pose)
-        rz = robot.pose.rotation.angle_z
+        for p in path:
+            nx, ny = p
+            rx, ry = poseToGrid(robot.pose)
+            rz = robot.pose.rotation.angle_z
 
-        dx = nx - rx
-        dy = ny - ry
+            dx = nx - rx
+            dy = ny - ry
 
-        rots = {
-            (-1, -1): (225, 1.41),
-            (-1, 0):  (270, 1),
-            (-1, 1):  (135, 1.41),
-            (0, -1):  (270, 1),
-            (0, 0):   (0, 0),
-            (0, 1):   (90, 1),
-            (1, -1):  (325, 1.41),
-            (1, 0):   (0, 1),
-            (1, 1):   (45, 1.41),
-        }
+            rots = {
+                (-1, -1): (225, 1.41),
+                (-1, 0):  (270, 1),
+                (-1, 1):  (135, 1.41),
+                (0, -1):  (270, 1),
+                (0, 0):   (0, 0),
+                (0, 1):   (90, 1),
+                (1, -1):  (325, 1.41),
+                (1, 0):   (0, 1),
+                (1, 1):   (45, 1.41)
+            }
 
-        def clamp(x):
-            return min(max(int(round(dx)), -1), 1)
+            def clamp(x):
+                return min(max(int(round(dx)), -1), 1)
 
-        print((clamp(dx), clamp(dy)))
+            print((clamp(dx), clamp(dy)))
 
-        rotz, rotd = rots[(clamp(dx), clamp(dy))]
+            rotz, rotd = rots[(clamp(dx), clamp(dy))]
 
-        robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
-        robot.drive_straight(distance_mm(rotd * 25), speed_mmps(50)).wait_for_completed()
+            robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
+            robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
     
     grid.clearGoals()
     for goal in oldGoals:
