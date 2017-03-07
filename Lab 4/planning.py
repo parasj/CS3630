@@ -1,6 +1,6 @@
 
-#author1:
-#author2:
+#author1: Paras Jain
+#author2: Connor Lindquist
 
 import asyncio
 from grid import *
@@ -95,45 +95,48 @@ def init(robot: cozmo.robot.Robot):
 
 def in_center(robot: cozmo.robot.Robot):
     x,y = poseToGrid(robot.pose)
+    # print(abs(x-13) + abs(y-9))
     return abs(x-13) + abs(y-9) < 2
 
 def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
     oldGoals = grid.getGoals()
     grid.clearGoals()
     grid.addGoal(pos)
-    grid.clearVisited()
     astar(grid, heuristic)
     path = grid.getPath()
     if len(path) > 1:
-        for p in path:
-            nx, ny = p
-            rx, ry = poseToGrid(robot.pose)
-            rz = robot.pose.rotation.angle_z
+        nx, ny = path[1]
+        rx, ry = poseToGrid(robot.pose)
+        rz = robot.pose.rotation.angle_z
 
-            dx = nx - rx
-            dy = ny - ry
+        dx = nx - rx
+        dy = ny - ry
 
-            rots = {
-                (-1, -1): (225, 1.41),
-                (-1, 0):  (270, 1),
-                (-1, 1):  (135, 1.41),
-                (0, -1):  (270, 1),
-                (0, 0):   (0, 0),
-                (0, 1):   (90, 1),
-                (1, -1):  (325, 1.41),
-                (1, 0):   (0, 1),
-                (1, 1):   (45, 1.41)
-            }
+        rotd = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
+        if dx==0:
+            dx = 0.0001
+        rotz = math.degrees(math.atan(dy/dx))
+        # rots = {
+        #     (-1, -1): (225, 1.41),
+        #     (-1, 0):  (270, 1),
+        #     (-1, 1):  (135, 1.41),
+        #     (0, -1):  (270, 1),
+        #     (0, 0):   (0, 0),
+        #     (0, 1):   (90, 1),
+        #     (1, -1):  (325, 1.41),
+        #     (1, 0):   (0, 1),
+        #     (1, 1):   (45, 1.41)
+        # }
 
-            def clamp(x):
-                return min(max(int(round(dx)), -1), 1)
+        # def clamp(x):
+        #     return min(max(int(round(dx)), -1), 1)
 
-            print((clamp(dx), clamp(dy)))
+        # print((clamp(dx), clamp(dy)))
 
-            rotz, rotd = rots[(clamp(dx), clamp(dy))]
+        # rotz, rotd = rots[(clamp(dx), clamp(dy))]
 
-            robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
-            robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
+        robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
+        robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
     
     grid.clearGoals()
     for goal in oldGoals:
@@ -163,6 +166,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     init(robot)
     grid.setStart((3,2))
     while not stopevent.is_set():
+        print(state)
         if state == "go_to_center":
             updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
@@ -171,11 +175,15 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 else:
                     robot_go_to(robot, grid, (13, 9))
             else:
+                grid.clearVisited()
+                grid.clearGoals()
+                # robot.say("hello world").wait_for_completed()
+                grid.setStart(poseToGrid(robot.pose))
                 state = "drive"
                 print("drive")
 
         elif state == "drive":
-
+            # updateGrid(robot, grid)
             cubes = list(robot.world.visible_objects)
             goals = grid.getGoals()
             if len(goals) < 1:
@@ -185,16 +193,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                     state = "orient"
                 else:
                     robot_go_to(robot, grid, goals[0])
-            # if cubes is not None and len(cubes) > 0:
-            #     for cube in cubes:
-            #         x = world.light_cubes[cozmo.objects.LightCube1Id].x/25
-            #         y = world.light_cubes[cozmo.objects.LightCube1Id].y/25
-            #         if world.light_cubes[cozmo.objects.LightCube1Id].object_id == 1:
-            #             if grid.getGoals is  None:
-            #                 grid.addGoal(self.grid, (x,y))
-            #         else:
-            #             grid.addObstacle(self.grid, (x,y))
-            # astar(self.grid, heuristic)
 
         elif state == "search":
             updateGrid(robot, grid)
