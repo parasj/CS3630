@@ -9,7 +9,7 @@ import threading
 from queue import PriorityQueue
 import math
 import cozmo
-from cozmo.util import degrees, distance_mm
+from cozmo.util import degrees, distance_mm, speed_mmps
 
 def astar(grid, heuristic):
     """Perform the A* search algorithm on a defined grid
@@ -61,19 +61,17 @@ def heuristic(current, goal):
 
 def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
     cubes = []
-
+    grid.addVisited(poseToGrid(robot.pose))
     try:
         cubes = list(robot.world.visible_objects)
     except asyncio.TimeoutError:
-        print("Didn't find a cube")
         return
-
+    print(cubes)
     for cube in cubes:
         if cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
             grid.clearGoals()
             print("found cube1, marking goal", poseToGrid(cube.pose), str(cube))
             grid.addGoal(poseToGrid(cube.pose))
-            grid.addObstacle(poseToGrid(cube.pose))
             cube.set_lights(cozmo.lights.green_light.flash())
         else: # update obstacle
             print("found obstacle at", str(poseToGrid(cube.pose)), str(cube))
@@ -95,10 +93,51 @@ def init(robot: cozmo.robot.Robot):
 
 
 def in_center(robot: cozmo.robot.Robot):
-    return True
+    x,y = poseToGrid(robot.pose)
+    return abs(x-13) + abs(y-9) < 2
 
-def robot_go_to(robot: cozmo.robot.Robot, pos):
-    return True
+def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
+    oldGoals = grid.getGoals()
+    grid.clearGoals()
+    grid.addGoal(pos)
+    astar(grid, heuristic)
+    path = grid.getPath()
+    if len(path) > 1:
+        nx, ny = path[3]
+        rx, ry = poseToGrid(robot.pose)
+        rz = robot.pose.rotation.angle_z
+
+        dx = nx - rx
+        dy = ny - ry
+
+        rots = {
+            (-1, -1): (225, 1.41),
+            (-1, 0):  (270, 1),
+            (-1, 1):  (135, 1.41),
+            (0, -1):  (270, 1),
+            (0, 0):   (0, 0),
+            (0, 1):   (90, 1),
+            (1, -1):  (325, 1.41),
+            (1, 0):   (0, 1),
+            (1, 1):   (45, 1.41),
+        }
+
+        def clamp(x):
+            return min(max(int(round(dx)), -1), 1)
+
+        print((clamp(dx), clamp(dy)))
+
+        rotz, rotd = rots[(clamp(dx), clamp(dy))]
+
+        robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
+        robot.drive_straight(distance_mm(rotd * 25), speed_mmps(50)).wait_for_completed()
+    
+    grid.clearGoals()
+    for goal in oldGoals:
+        grid.addGoal(goal)
+
+def at_cube():
+    return False
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
     """Cozmo search behavior. See assignment document for details
@@ -115,11 +154,11 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     global grid, stopevent
 
-    state = "search"
+    state = "go_to_center"
     currentPos = (0,0,0)
 
     init(robot)
-
+    grid.setStart((3,2))
     while not stopevent.is_set():
         if state == "go_to_center":
             updateGrid(robot, grid)
@@ -127,13 +166,22 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 if in_center(robot):
                     state = "search"
                 else:
-                    robot_go_to(robot, (13, 9))
+                    robot_go_to(robot, grid, (13, 9))
             else:
                 state = "drive"
                 print("drive")
 
         elif state == "drive":
+
             cubes = list(robot.world.visible_objects)
+            goals = grid.getGoals()
+            if len(goals) < 1:
+                state = "go_to_center"
+            else:
+                if at_cube():
+                    state = "orient"
+                else:
+                    robot_go_to(robot, grid, goals[0])
             # if cubes is not None and len(cubes) > 0:
             #     for cube in cubes:
             #         x = world.light_cubes[cozmo.objects.LightCube1Id].x/25
@@ -148,10 +196,10 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         elif state == "search":
             updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
-                robot.drive_wheels(30, -30)
+                robot.turn_in_place(degrees(30)).wait_for_completed()
             else:
                 state = "drive"
-                print("Drive")
+                # print("Drive")
 
 
 
