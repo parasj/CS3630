@@ -35,7 +35,7 @@ def astar(grid, heuristic):
         grid.addVisited(cell)
         if cell == goal:
             grid.setPath(path)
-            return
+            return path
         else:
             for neighborWithCost in grid.getNeighbors(cell):
                 neighbor, cost = neighborWithCost
@@ -46,6 +46,7 @@ def astar(grid, heuristic):
                     newpath = path[:]
                     newpath.append(neighbor)
                     front.put((priority, counter + 1, (neighbor, newpath)))
+    return [grid.getStart()]
 
 
 def heuristic(current, goal):
@@ -60,33 +61,41 @@ def heuristic(current, goal):
     return pow(pow(goaly - curry, 2) + pow(goalx - currx, 2), 0.5)
 
 def updateGrid(robot: cozmo.robot.Robot, grid: CozGrid):
-    cubes = []
-    grid.setStart(poseToGrid(robot.pose))
-    # grid.addVisited(poseToGrid(robot.pose))
     try:
         cubes = list(robot.world.visible_objects)
     except asyncio.TimeoutError:
         return
-    print(cubes)
+
     for cube in cubes:
         if cube.object_id == robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id:
             grid.clearGoals()
-            print("found cube1, marking goal", poseToGrid(cube.pose), str(cube))
-            grid.addGoal(poseToGrid(cube.pose))
+            print("found cube1, marking goal", poseToGridCube(cube.pose), str(cube))
+            grid.addGoal(poseToGridCube(cube.pose))
             cube.set_lights(cozmo.lights.green_light.flash())
         else: # update obstacle
-            print("found obstacle at", str(poseToGrid(cube.pose)), str(cube))
-            grid.addObstacle(poseToGrid(cube.pose))
+            print("found obstacle at", str(poseToGridCube(cube.pose)), str(cube))
+            grid.addObstacle(poseToGridCube(cube.pose))
             cube.set_lights(cozmo.lights.red_light.flash())
 
-
+ix = 0
+iy = 0
 
 def poseToGrid(pose: cozmo.util.Pose):
+    global ix, iy
+
     pos = pose.position
-    x = (pos.x / 25.6) + 3
-    y = (pos.y / 25.6) + 2
-    print(x, y)
+    x = ((pos.x - ix) / 25.6) + 3
+    y = ((pos.y - iy) / 25.6) + 2
     return x, y
+
+def poseToGridCube(pose: cozmo.util.Pose):
+    global ix, iy
+
+    pos = pose.position
+    x = ((pos.x - ix) / 25.6)
+    y = ((pos.y - iy) / 25.6)
+    return x, y
+
 
 def init(robot: cozmo.robot.Robot):
     robot.move_lift(-3)
@@ -95,16 +104,19 @@ def init(robot: cozmo.robot.Robot):
 
 def in_center(robot: cozmo.robot.Robot):
     x,y = poseToGrid(robot.pose)
-    # print(abs(x-13) + abs(y-9))
     return abs(x-13) + abs(y-9) < 2
 
 def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
     oldGoals = grid.getGoals()
+
+    grid.setStart(poseToGrid(robot.pose))
     grid.clearGoals()
     grid.addGoal(pos)
-    astar(grid, heuristic)
-    path = grid.getPath()
+
+    path = astar(grid, heuristic)
+
     if len(path) > 1:
+        print("Going to " + str(path[1]))
         nx, ny = path[1]
         rx, ry = poseToGrid(robot.pose)
         rz = robot.pose.rotation.angle_z
@@ -113,27 +125,9 @@ def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
         dy = ny - ry
 
         rotd = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
-        if dx==0:
+        if dx == 0:
             dx = 0.0001
-        rotz = math.degrees(math.atan(dy/dx))
-        # rots = {
-        #     (-1, -1): (225, 1.41),
-        #     (-1, 0):  (270, 1),
-        #     (-1, 1):  (135, 1.41),
-        #     (0, -1):  (270, 1),
-        #     (0, 0):   (0, 0),
-        #     (0, 1):   (90, 1),
-        #     (1, -1):  (325, 1.41),
-        #     (1, 0):   (0, 1),
-        #     (1, 1):   (45, 1.41)
-        # }
-
-        # def clamp(x):
-        #     return min(max(int(round(dx)), -1), 1)
-
-        # print((clamp(dx), clamp(dy)))
-
-        # rotz, rotd = rots[(clamp(dx), clamp(dy))]
+        rotz = math.degrees(math.atan(dy / dx))
 
         robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
         robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
@@ -143,6 +137,10 @@ def robot_go_to(robot: cozmo.robot.Robot, grid, pos):
         grid.addGoal(goal)
 
 def at_cube():
+    if len(grid.getGoals()) > 0:
+        gx, gy = grid.getGoals()[0]
+        x, y = poseToGrid(robot.pose)
+        return abs(x - gx) + abs(y - gy) < 2
     return False
 
 def cozmoBehavior(robot: cozmo.robot.Robot):
@@ -158,33 +156,28 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     """
 
 
-    global grid, stopevent
+    global grid, stopevent, ix, iy
 
     state = "go_to_center"
-    currentPos = (0,0,0)
-
     init(robot)
+
+    ix = robot.pose.position.x
+    iy = robot.pose.position.y
+
     grid.setStart((3,2))
     while not stopevent.is_set():
-        print(state)
+        updateGrid(robot, grid)
+
         if state == "go_to_center":
-            updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
                 if in_center(robot):
                     state = "search"
                 else:
                     robot_go_to(robot, grid, (13, 9))
             else:
-                grid.clearVisited()
-                grid.clearGoals()
-                # robot.say("hello world").wait_for_completed()
-                grid.setStart(poseToGrid(robot.pose))
                 state = "drive"
-                print("drive")
 
         elif state == "drive":
-            # updateGrid(robot, grid)
-            cubes = list(robot.world.visible_objects)
             goals = grid.getGoals()
             if len(goals) < 1:
                 state = "go_to_center"
@@ -195,12 +188,10 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                     robot_go_to(robot, grid, goals[0])
 
         elif state == "search":
-            updateGrid(robot, grid)
             if len(grid.getGoals()) == 0:
                 robot.turn_in_place(degrees(30)).wait_for_completed()
             else:
                 state = "drive"
-                # print("Drive")
 
 
 
