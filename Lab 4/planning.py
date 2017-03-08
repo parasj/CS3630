@@ -210,15 +210,20 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 for v in visited:
                     grid.addVisited(v)
                 path_pos = 0
+                grid.clearGoals()
+                grid.addGoal((13, 9))
                 print("Plotted path for center")
                 state = "go_to_center"
             else:
-                path, visited = astarImpl(heuristic, grid.getStart(), poseToGrid(cubes[1].pose), grid) # todo choose right side of cube
+                dest = cubes[1].pose
+                path, visited = astarImpl(heuristic, grid.getStart(), poseToGrid(dest), grid) # todo choose right side of cube
                 grid.setPath(path)
                 grid.clearVisited()
                 for v in visited:
                     grid.addVisited(v)
                 path_pos = 0
+                grid.clearGoals()
+                grid.addGoal(dest)
                 print("Plotted path for cube 1")
                 state = "drive"
 
