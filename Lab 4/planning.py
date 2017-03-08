@@ -15,7 +15,7 @@ from cozmo.util import degrees, distance_mm, speed_mmps
 ix = 0 # initial x position
 iy = 0 # initial y position
 grid_scale = 25.6
-
+goalPosition = None
 
 # Utility functions
 def grid_dist(a, b):
@@ -113,7 +113,27 @@ def add_obstacle_to_grid(grid: CozGrid, obstacle):
         for dy in [-2, -1, 0, 1, 2]:
             grid.addObstacle((ox + dx, oy + dy))
 
+def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
+    print("Goal cube 1 added")
+    ox, oy = c(obstacle)
+    oz = 180 + cube.pose.rotation.angle_z.degrees
+    for dx in [-2, -1, 0, 1, 2]:
+        for dy in [-2, -1, 0, 1, 2]:
+            grid.addObstacle((ox + dx, oy + dy))
+    if oz > 60 and oz < 120: #set goal above
+        grid.addGoal((ox, oy + 3))
+        goalPosition = (ox, oy + 3)
+    elif oz > 150 and oz < 210:
+        grid.addGoal((ox - 3, oy))
+        goalPosition =  (ox - 3, oy)
+    elif oz > 240 and oz < 300:
+        grid.addGoal((ox, oy - 3))
+        goalPosition =   (ox, oy -3)
+    elif (oz > 330 and oz <= 360) or (0 <= oz and oz < 30):
+        grid.addGoal((ox + 3, oy))
+        goalPosition =  (ox + 3, oy)
 
+    # grid.addGoal((ox, oy))
 # find any new cubes and place them into the map if necessary. returns true if any cubes were added
 def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozGrid):
     try:
@@ -131,6 +151,7 @@ def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozG
                 print("I found cube 1 at " + str(poseToGridRaw(cube.pose)))
                 seen_cubes[1] = cube
                 changed = True
+                add_goal_obstacle_to_grid(grid, poseToGridRaw(cube.pose), seen_cubes[1])
             elif 2 not in seen_cubes and is_cube_2:
                 print("I found cube 2 at " + str(poseToGridRaw(cube.pose)))
                 seen_cubes[2] = cube
@@ -189,10 +210,10 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     print("Initial calibration ", str((ix, iy)))
 
     cubes = {}
-
+    # goalPosition = None
     path = []
     path_pos = -1
-
+    toGoal = 0
     grid.setStart((3,2))
     while not stopevent.is_set():
         cubes_changed, cubes = find_and_update_cubes(robot, cubes, grid)
@@ -226,6 +247,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 grid.addGoal(dest)
                 print("Plotted path for cube 1")
                 state = "drive"
+                goalCube = poseToGrid(cubes[1].pose)
 
         elif state == "go_to_center":
             if 1 not in cubes:
@@ -246,7 +268,19 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 robot.turn_in_place(degrees(30)).wait_for_completed()
             else:
                 state = "drive"
+                goalCube = poseToGrid(cubes[1].pose)
 
+        elif state == "drive":
+            # None
+            # if 1 in cubes:
+            #     print(cubes[1].pose.rotation.angle_z.degrees)
+            # if 1 in cubes:
+            #     if toGoal > -1:
+            #         drive_to(robot, path[toGoal])
+            #         toGoal += 1
+            # else:
+            #     state = "stopped"
+            print("In drive, goal is: ", goalPosition)
 
 
 
