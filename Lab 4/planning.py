@@ -121,20 +121,21 @@ def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
             grid.addObstacle((ox + dx, oy + dy))
     if oz > 60 and oz < 120: #set goal above
         grid.addGoal((ox, oy + 3))
-        goalPosition = (ox, oy + 3)
+        return(ox, oy + 3)
     elif oz > 150 and oz < 210:
         grid.addGoal((ox - 3, oy))
-        goalPosition =  (ox - 3, oy)
+        return (ox - 3, oy)
     elif oz > 240 and oz < 300:
         grid.addGoal((ox, oy - 3))
-        goalPosition =   (ox, oy -3)
+        return (ox, oy -3)
     elif (oz > 330 and oz <= 360) or (0 <= oz and oz < 30):
         grid.addGoal((ox + 3, oy))
-        goalPosition =  (ox + 3, oy)
+        return (ox + 3, oy)
 
     # grid.addGoal((ox, oy))
 # find any new cubes and place them into the map if necessary. returns true if any cubes were added
 def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozGrid):
+    gP = None
     try:
         cubes = list(robot.world.visible_objects)
     except asyncio.TimeoutError:
@@ -150,7 +151,7 @@ def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozG
                 print("I found cube 1 at " + str(poseToGridRaw(cube.pose)))
                 seen_cubes[1] = cube
                 changed = True
-                add_goal_obstacle_to_grid(grid, poseToGridRaw(cube.pose), seen_cubes[1])
+                gP = add_goal_obstacle_to_grid(grid, poseToGridRaw(cube.pose), seen_cubes[1])
             elif 2 not in seen_cubes and is_cube_2:
                 print("I found cube 2 at " + str(poseToGridRaw(cube.pose)))
                 seen_cubes[2] = cube
@@ -161,7 +162,7 @@ def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozG
                 seen_cubes[3] = cube
                 changed = True
                 add_obstacle_to_grid(grid, poseToGridRaw(cube.pose))
-        return changed, seen_cubes
+        return changed, seen_cubes, gP
 
 
 # straight line drive to
@@ -204,20 +205,20 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         robot -- cozmo.robot.Robot instance, supplied by cozmo.run_program
     """
 
-    global grid, stopevent, goalPosition
+    global grid, stopevent
 
     state = "stopped"
     init(robot)
     print("Initial calibration ", str((ix, iy)))
 
     cubes = {}
-    # goalPosition = None
+    goalPosition = None
     path = []
     path_pos = -1
     toGoal = 0
-    grid.setStart((3,2))
+    grid.setStart((2,2))
     while not stopevent.is_set():
-        cubes_changed, cubes = find_and_update_cubes(robot, cubes, grid)
+        cubes_changed, cubes, goalPosition = find_and_update_cubes(robot, cubes, grid)
         if cubes_changed:
             state = "stopped"
 
