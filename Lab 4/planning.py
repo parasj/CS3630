@@ -176,7 +176,7 @@ def drive_to(robot: cozmo.robot.Robot, pos):
     rotd = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
     if dx == 0:
         dx = 0.00001
-    rotz = math.degrees(math.atan(dy / dx))
+    rotz = math.degrees(math.atan2(dy, dx))
 
     robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
     robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
