@@ -167,18 +167,20 @@ def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozG
 # straight line drive to
 def drive_to(robot: cozmo.robot.Robot, pos):
     nx, ny = pos
-    rx, ry = poseToGridRaw(robot.pose)
-    rz = robot.pose.rotation.angle_z
 
+    rx, ry = poseToGridRaw(robot.pose)
+    dx = nx - rx
+    dy = ny - ry
+
+    rz = robot.pose.rotation.angle_z
+    rotz = math.degrees(math.atan2(dy, dx))
+    robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
+
+    rx, ry = poseToGridRaw(robot.pose)
     dx = nx - rx
     dy = ny - ry
 
     rotd = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
-    if dx == 0:
-        dx = 0.00001
-    rotz = math.degrees(math.atan2(dy, dx))
-
-    robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
     robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
 
 
