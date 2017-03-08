@@ -15,7 +15,6 @@ from cozmo.util import degrees, distance_mm, speed_mmps
 ix = 0 # initial x position
 iy = 0 # initial y position
 grid_scale = 25.6
-goalPosition = None
 
 # Utility functions
 def grid_dist(a, b):
@@ -203,7 +202,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         robot -- cozmo.robot.Robot instance, supplied by cozmo.run_program
     """
 
-    global grid, stopevent
+    global grid, stopevent, goalPosition
 
     state = "stopped"
     init(robot)
