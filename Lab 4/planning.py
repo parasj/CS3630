@@ -174,7 +174,7 @@ def drive_to(robot: cozmo.robot.Robot, pos):
     dy = ny - ry
 
     rz = robot.pose.rotation.angle_z
-    rotz = math.degrees(math.atan2(dy, dx))
+    rotz = math.degrees(math.atan2(dy + 20, dx + 20))
     robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
 
     rx, ry = poseToGridRaw(robot.pose)
@@ -271,6 +271,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 state = "drive"
 
         elif state == "drive":
+
             # None
             # if 1 in cubes:
             #     print(cubes[1].pose.rotation.angle_z.degrees)
