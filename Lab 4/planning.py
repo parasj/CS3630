@@ -108,7 +108,7 @@ def heuristic(current, goal):
 # add an obstacle to the map
 def add_obstacle_to_grid(grid: CozGrid, obstacle):
     ox, oy = c(obstacle)
-    for dx in [-3, -2, -1, 0, 1, 2, 3]:
+    for dx in [ -3, -2, -1, 0, 1, 2, 3]:
         for dy in [-3, -2, -1, 0, 1, 2, 3]:
             grid.addObstacle((ox + dx, oy + dy))
 
@@ -174,7 +174,7 @@ def drive_to(robot: cozmo.robot.Robot, pos):
     dy = ny - ry
 
     rz = robot.pose.rotation.angle_z
-    rotz = math.degrees(math.atan2(dy + 20, dx + 20))
+    rotz = math.degrees(math.atan2(dy + .6, dx + .6))
     robot.turn_in_place(degrees(rotz) - rz).wait_for_completed()
 
     rx, ry = poseToGridRaw(robot.pose)
@@ -223,7 +223,8 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             state = "stopped"
 
         grid.setStart(poseToGrid(robot.pose))
-        print("-- ", state, " --")
+        if state != "done":
+            print("-- ", state, " --")
 
         if state == "stopped":
             if 1 not in cubes:
@@ -286,8 +287,14 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                     path_pos += 1
 
         elif state == "rotate":
-            print("CUBE: ", cubes[1].pose.rotation.angle_z.degrees)
+            cozmoZ = robot.pose.rotation.angle_z.degrees
+            cubeZ = cubes[1].pose.rotation.angle_z.degrees + 180
+            angleZ = (cubeZ + 180)%360 - cozmoZ
+            print("CUBE: ", cubes[1].pose.rotation.angle_z.degrees + 180)
             print("COZMO: ", robot.pose.rotation.angle_z.degrees)
+            print("Rotation value: ", angleZ)
+            robot.turn_in_place(degrees(angleZ).wait_for_completed()
+            state = "done"
 
 
 
