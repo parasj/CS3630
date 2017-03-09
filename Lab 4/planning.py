@@ -134,8 +134,8 @@ def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
 
     # grid.addGoal((ox, oy))
 # find any new cubes and place them into the map if necessary. returns true if any cubes were added
-def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozGrid):
-    gP = None
+def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozGrid, oldGoalPosition):
+    gP = oldGoalPosition
     try:
         cubes = list(robot.world.visible_objects)
     except asyncio.TimeoutError:
@@ -215,10 +215,10 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     goalPosition = None
     path = []
     path_pos = -1
-    toGoal = 0
     grid.setStart((2,2))
+
     while not stopevent.is_set():
-        cubes_changed, cubes, goalPosition = find_and_update_cubes(robot, cubes, grid)
+        cubes_changed, cubes, goalPosition = find_and_update_cubes(robot, cubes, grid, goalPosition)
         if cubes_changed:
             state = "stopped"
 
@@ -238,8 +238,8 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 print("Plotted path for center")
                 state = "go_to_center"
             else:
-                dest = cubes[1].pose
-                path, visited = astarImpl(heuristic, grid.getStart(), poseToGrid(dest), grid) # todo choose right side of cube
+                dest = goalPosition
+                path, visited = astarImpl(heuristic, grid.getStart(), dest, grid) # todo choose right side of cube
                 grid.setPath(path)
                 grid.clearVisited()
                 for v in visited:
@@ -249,7 +249,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 grid.addGoal(dest)
                 print("Plotted path for cube 1")
                 state = "drive"
-                goalCube = poseToGrid(cubes[1].pose)
 
         elif state == "go_to_center":
             if 1 not in cubes:
