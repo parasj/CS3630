@@ -269,7 +269,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 robot.turn_in_place(degrees(30)).wait_for_completed()
             else:
                 state = "drive"
-                goalCube = poseToGrid(cubes[1].pose)
 
         elif state == "drive":
             # None
