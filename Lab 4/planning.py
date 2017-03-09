@@ -14,7 +14,7 @@ from cozmo.util import degrees, distance_mm, speed_mmps
 # State globals
 ix = 0 # initial x position
 iy = 0 # initial y position
-grid_scale = 25.6
+grid_scale = 25
 
 # Utility functions
 def grid_dist(a, b):
@@ -108,7 +108,7 @@ def heuristic(current, goal):
 # add an obstacle to the map
 def add_obstacle_to_grid(grid: CozGrid, obstacle):
     ox, oy = c(obstacle)
-    for dx in [ -3, -2, -1, 0, 1, 2, 3]:
+    for dx in [ -3, -2, -1, 0, 1, 2, 3 ]:
         for dy in [-3, -2, -1, 0, 1, 2, 3]:
             grid.addObstacle((ox + dx, oy + dy))
 
@@ -116,23 +116,18 @@ def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
     print("Goal cube 1 added")
     ox, oy = c(obstacle)
     oz = 180 + cube.pose.rotation.angle_z.degrees
-    for dx in [-3, -2, -1, 0, 1, 2, 3]:
-        for dy in [-3, -2, -1, 0, 1, 2, 3]:
+    for dx in [-4, -3, -2, -1, 0, 1, 2, 3, 4]:
+        for dy in [-4, -3, -2, -1, 0, 1, 2, 3, 4]:
             grid.addObstacle((ox + dx, oy + dy))
-    if oz > 45 and oz < 135: #set goal above
-        grid.addGoal((ox, oy + 4))
-        return(ox, oy + 4)
-    elif oz > 135 and oz < 225:
-        grid.addGoal((ox - 4, oy))
-        return (ox - 4, oy)
-    elif oz > 225 and oz < 315:
-        grid.addGoal((ox, oy - 4))
-        return (ox, oy -4)
-    elif (oz > 315 and oz <= 360) or (0 <= oz and oz < 45):
-        grid.addGoal((ox + 4, oy))
-        return (ox + 4, oy)
 
-    # grid.addGoal((ox, oy))
+    dx = 5 * math.cos(math.radians(oz))
+    dy = 5 * math.sin(math.radians(oz))
+
+    g = c((ox + dx, oy + dy))
+
+    grid.addGoal(g)
+    return g
+
 # find any new cubes and place them into the map if necessary. returns true if any cubes were added
 def find_and_update_cubes(robot: cozmo.robot.Robot, seen_cubes: dict, grid: CozGrid, oldGoalPosition):
     gP = oldGoalPosition
@@ -182,7 +177,7 @@ def drive_to(robot: cozmo.robot.Robot, pos):
     dy = ny - ry
 
     rotd = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
-    robot.drive_straight(distance_mm(rotd * 25.6), speed_mmps(25)).wait_for_completed()
+    robot.drive_straight(distance_mm(rotd * 25), speed_mmps(50)).wait_for_completed()
 
 
 def init(robot: cozmo.robot.Robot):
@@ -215,7 +210,15 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     goalPosition = None
     path = []
     path_pos = -1
-    grid.setStart((2,2))
+    grid.setStart((3, 2))
+
+    for i in range(26):
+        grid.addObstacle((i, 0))
+        grid.addObstacle((i, 17))
+
+    for i in range(18):
+        grid.addObstacle((0, i))
+        grid.addObstacle((25, i))
 
     while not stopevent.is_set():
         cubes_changed, cubes, goalPosition = find_and_update_cubes(robot, cubes, grid, goalPosition)
@@ -229,25 +232,25 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         if state == "stopped":
             if 1 not in cubes:
                 path, visited = astarImpl(heuristic, grid.getStart(), (13, 9), grid)
-                grid.setPath(path)
                 grid.clearVisited()
                 for v in visited:
                     grid.addVisited(v)
                 path_pos = 0
                 grid.clearGoals()
                 grid.addGoal((13, 9))
+                grid.setPath(path)
                 print("Plotted path for center")
                 state = "go_to_center"
             else:
                 dest = goalPosition
                 path, visited = astarImpl(heuristic, grid.getStart(), dest, grid) # todo choose right side of cube
-                grid.setPath(path)
                 grid.clearVisited()
                 for v in visited:
                     grid.addVisited(v)
                 path_pos = 0
                 grid.clearGoals()
                 grid.addGoal(dest)
+                grid.setPath(path)
                 print("Plotted path for cube 1")
                 state = "drive"
 
@@ -293,7 +296,8 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             print("CUBE: ", cubes[1].pose.rotation.angle_z.degrees + 180)
             print("COZMO: ", robot.pose.rotation.angle_z.degrees)
             print("Rotation value: ", angleZ)
-            robot.turn_in_place(degrees(angleZ).wait_for_completed()
+            robot.turn_in_place(degrees(angleZ)).wait_for_completed()
+            robot.play_anim(name="ID_pokedB").wait_for_completed()
             state = "done"
 
 
