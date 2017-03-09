@@ -119,16 +119,16 @@ def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
     for dx in [-3, -2, -1, 0, 1, 2, 3]:
         for dy in [-3, -2, -1, 0, 1, 2, 3]:
             grid.addObstacle((ox + dx, oy + dy))
-    if oz > 60 and oz < 120: #set goal above
+    if oz > 45 and oz < 135: #set goal above
         grid.addGoal((ox, oy + 4))
         return(ox, oy + 4)
-    elif oz > 150 and oz < 210:
+    elif oz > 135 and oz < 225:
         grid.addGoal((ox - 4, oy))
         return (ox - 4, oy)
-    elif oz > 240 and oz < 300:
+    elif oz > 225 and oz < 315:
         grid.addGoal((ox, oy - 4))
         return (ox, oy -4)
-    elif (oz > 330 and oz <= 360) or (0 <= oz and oz < 30):
+    elif (oz > 315 and oz <= 360) or (0 <= oz and oz < 45):
         grid.addGoal((ox + 4, oy))
         return (ox + 4, oy)
 
