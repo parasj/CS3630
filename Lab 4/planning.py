@@ -108,29 +108,29 @@ def heuristic(current, goal):
 # add an obstacle to the map
 def add_obstacle_to_grid(grid: CozGrid, obstacle):
     ox, oy = c(obstacle)
-    for dx in [-2, -1, 0, 1, 2]:
-        for dy in [-2, -1, 0, 1, 2]:
+    for dx in [-3, -2, -1, 0, 1, 2, 3]:
+        for dy in [-3, -2, -1, 0, 1, 2, 3]:
             grid.addObstacle((ox + dx, oy + dy))
 
 def add_goal_obstacle_to_grid(grid: CozGrid, obstacle, cube):
     print("Goal cube 1 added")
     ox, oy = c(obstacle)
     oz = 180 + cube.pose.rotation.angle_z.degrees
-    for dx in [-2, -1, 0, 1, 2]:
-        for dy in [-2, -1, 0, 1, 2]:
+    for dx in [-3, -2, -1, 0, 1, 2, 3]:
+        for dy in [-3, -2, -1, 0, 1, 2, 3]:
             grid.addObstacle((ox + dx, oy + dy))
     if oz > 60 and oz < 120: #set goal above
-        grid.addGoal((ox, oy + 3))
-        return(ox, oy + 3)
+        grid.addGoal((ox, oy + 4))
+        return(ox, oy + 4)
     elif oz > 150 and oz < 210:
-        grid.addGoal((ox - 3, oy))
-        return (ox - 3, oy)
+        grid.addGoal((ox - 4, oy))
+        return (ox - 4, oy)
     elif oz > 240 and oz < 300:
-        grid.addGoal((ox, oy - 3))
-        return (ox, oy -3)
+        grid.addGoal((ox, oy - 4))
+        return (ox, oy -4)
     elif (oz > 330 and oz <= 360) or (0 <= oz and oz < 30):
-        grid.addGoal((ox + 3, oy))
-        return (ox + 3, oy)
+        grid.addGoal((ox + 4, oy))
+        return (ox + 4, oy)
 
     # grid.addGoal((ox, oy))
 # find any new cubes and place them into the map if necessary. returns true if any cubes were added
@@ -271,18 +271,23 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                 state = "drive"
 
         elif state == "drive":
-
-            # None
-            # if 1 in cubes:
-            #     print(cubes[1].pose.rotation.angle_z.degrees)
-            # if 1 in cubes:
-            #     if toGoal > -1:
-            #         drive_to(robot, path[toGoal])
-            #         toGoal += 1
-            # else:
-            #     state = "stopped"
             print("In drive, goal is: ", goalPosition)
+            if 1 not in cubes:
+                state = "stopped"
+            else:
+                if grid_dist(poseToGridRaw(robot.pose), goalPosition) < 1:
+                    state = "rotate"
+                elif path_pos == len(path):
+                    print("Huh... out of path options but I still am not in the center!")
+                    state = "stopped"
+                else:
+                    print("drive driving from " + str(poseToGridRaw(robot.pose)) + " to " + str(path[path_pos]))
+                    drive_to(robot, path[path_pos])
+                    path_pos += 1
 
+        elif state == "rotate":
+            print("CUBE: ", cubes[1].pose.rotation.angle_z.degrees)
+            print("COZMO: ", robot.pose.rotation.angle_z.degrees)
 
 
 
