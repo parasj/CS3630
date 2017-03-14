@@ -138,7 +138,9 @@ if __name__ == "__main__":
     # 1. steps to build tracking
     steps_built_track = 9999
     for i in range(0, Steps_build_tracking):
+
         est_pose = particlefilter.update()
+        
         if grid_distance(est_pose[0], est_pose[1], robbie.x, robbie.y) < Err_trans \
                 and math.fabs(diff_heading_deg(est_pose[2], robbie.h)) < Err_rot \
                 and i+1 < steps_built_track:
@@ -152,14 +154,39 @@ if __name__ == "__main__":
     else:
         score = 0
 
+    print("\nPhrase 1")
+    print("Number of steps to build track :", steps_built_track, "/", Steps_build_tracking)
+    acc_err_trans, acc_err_rot = 0.0, 0.0
+    max_err_trans, max_err_rot = 0.0, 0.0
+    step_track = 0
 
     # 2. test tracking
     score_per_track = 50.0 / Steps_stable_tracking
 
     for i in range(0, Steps_stable_tracking):
+
         est_pose = particlefilter.update()
+
+        err_trans = grid_distance(est_pose[0], est_pose[1], robbie.x, robbie.y)
+        acc_err_trans += err_trans
+        if max_err_trans < err_trans:
+            max_err_trans = err_trans
+
+        err_rot = math.fabs(diff_heading_deg(est_pose[2], robbie.h))
+        acc_err_rot += err_rot
+        if max_err_rot < err_rot:
+            max_err_rot = err_rot
+
         if grid_distance(est_pose[0], est_pose[1], robbie.x, robbie.y) < Err_trans \
                 and math.fabs(diff_heading_deg(est_pose[2], robbie.h)) < Err_rot:
+            step_track += 1
             score += score_per_track
 
-    print("score =", score)
+    print("\nPhrase 2")
+    print("Number of steps error in threshold :", step_track, "/", Steps_stable_tracking)
+    print("Average translational error :", acc_err_trans / Steps_stable_tracking)
+    print("Average rotational error :", acc_err_rot / Steps_stable_tracking, "deg")
+    print("Max translational error :", max_err_trans)
+    print("Max rotational error :", max_err_rot, "deg")
+
+    print("\nscore =", score)
