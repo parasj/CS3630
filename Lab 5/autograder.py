@@ -45,12 +45,12 @@ Err_rot = 10
 # example circle 1
 Robot_init_pose = (6, 3, 0)
 Dh_circular = 10
-Robot_speed = 0.5 
+Robot_speed = 0.5
 """
 # example circle 2
 Robot_init_pose = (5, 1, 0)
 Dh_circular = 6
-Robot_speed = 0.5 
+Robot_speed = 0.5
 
 # example circle 3
 Robot_init_pose = (5, 4, 0)

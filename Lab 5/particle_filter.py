@@ -56,11 +56,18 @@ def measurement_update(particles, measured_marker_list, grid):
     measured_particles = []
 
     # step 1 - set weights
-    for p in particles:
-        markers_visible_to_particle = particles.read_markers(grid)
+    for p in range(len(particles)):
+        markers_visible_to_particle = particles[p].read_markers(grid)
 
-        for cm in markers_visible_to_particle:
-            cx, cy = cm
-            closest_marker = min([(grid_distance(cx, cy, m[0], m[1]), m) for m in markers_visible_to_particle])
+        closest_marker = []
+        for cm in measured_marker_list:
+            if len(markers_visible_to_particle) > 0:
+                m = (sorted([(grid_distance(cm[0], cm[1], m[0], m[1]), m) for m in markers_visible_to_particle])[0])[1]
+                closest_marker.append((cm, m))
+                markers_visible_to_particle.remove(m)
 
+        prob = 1.0
+        for marker in closest_marker:
+            m = marker[0]
+            n = marker[1]
     return measured_particles
