@@ -29,7 +29,7 @@ def motion_update(particles, odom):
     return motion_particles
 
 
-def measurement_update(particles, measured_marker_list, grid):
+def measurement_update(particles, measured_marker_list, grid: CozGrid):
     """ Particle filter measurement update
 
         Arguments:
@@ -56,18 +56,17 @@ def measurement_update(particles, measured_marker_list, grid):
     measured_particles = []
 
     # step 1 - set weights
-    for p in range(len(particles)):
-        markers_visible_to_particle = particles[p].read_markers(grid)
+    valid_particles = filter(lambda x: grid.is_free(x[0], x[1]), particles)
+    for p in valid_particles:
+        markers_visible_to_particle = particles.read_markers(grid)
 
         closest_marker = []
-        for cm in measured_marker_list:
-            if len(markers_visible_to_particle) > 0:
-                m = (sorted([(grid_distance(cm[0], cm[1], m[0], m[1]), m) for m in markers_visible_to_particle])[0])[1]
-                closest_marker.append((cm, m))
-                markers_visible_to_particle.remove(m)
+        for cm in markers_visible_to_particle:
+            m = min(markers_visible_to_particle, key=lambda m: grid_distance(cm[0], cm[1], m[0], m[1]))
+            closest_marker.append((cm, m))
+            markers_visible_to_particle.remove(m)
 
         prob = 1.0
         for marker in closest_marker:
             m = marker[0]
             n = marker[1]
-    return measured_particles
