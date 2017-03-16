@@ -8,7 +8,6 @@ from setting import *
 
 
 """ Particle class (base class for robot)
-    A class for particle, each particle contains x, y, and heading information
 """
 class Particle(object):
 

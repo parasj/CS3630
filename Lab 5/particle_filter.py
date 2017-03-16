@@ -15,18 +15,20 @@ def motion_update(particles, odom):
         Returns: the list of particles represents belief \tilde{p}(x_{t} | u_{t})
                 after motion update
     """
-    if 0 in odom:
-        return particles
+
+    dx, dy, dh = odom
 
     motion_particles = []
     for p in particles:
-        p.h = p.h + add_gaussian_noise(odom[2], ODOM_HEAD_SIGMA)
-        p.x = p.x + add_gaussian_noise(rotate_point(odom[0], odom[1], p.h)[0], ODOM_TRANS_SIGMA)
-        p.y = p.y + add_gaussian_noise(rotate_point(odom[0], odom[1], p.h)[1], ODOM_TRANS_SIGMA)
+        rx, ry = rotate_point(dx, dy, p.h)
+        p.h += add_gaussian_noise(dh, ODOM_HEAD_SIGMA)
+        p.x += add_gaussian_noise(rx, ODOM_TRANS_SIGMA)
+        p.y += add_gaussian_noise(ry, ODOM_TRANS_SIGMA)
         motion_particles.append(p)
+
     return motion_particles
 
-# ------------------------------------------------------------------------
+
 def measurement_update(particles, measured_marker_list, grid):
     """ Particle filter measurement update
 
@@ -52,4 +54,13 @@ def measurement_update(particles, measured_marker_list, grid):
                 after measurement update
     """
     measured_particles = []
+
+    # step 1 - set weights
+    for p in particles:
+        markers_visible_to_particle = particles.read_markers(grid)
+
+        for cm in markers_visible_to_particle:
+            cx, cy = cm
+            closest_marker = min([(grid_distance(cx, cy, m[0], m[1]), m) for m in markers_visible_to_particle])
+
     return measured_particles
