@@ -1,3 +1,5 @@
+#Paras Jain, Connor Lindquist
+
 from grid import *
 from particle import Particle
 from utils import *
