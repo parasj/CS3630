@@ -4,34 +4,30 @@
 By press space, save the image from 001.bmp to ...
 '''
 
-import cv2
-import cozmo
-import numpy as np
-from numpy.linalg import inv
 import threading
 
-from ar_markers.hamming.detect import detect_markers
+import cozmo
+import cv2
+from cozmo.util import degrees, distance_mm, speed_mmps
+from numpy.linalg import inv
 
-from grid import CozGrid
+from ar_markers.hamming.detect import detect_markers
 from gui import GUIWindow
-from particle import Particle, Robot
-from setting import *
 from particle_filter import *
 from utils import *
-
 
 # camera params
 camK = np.matrix([[295, 0, 160], [0, 295, 120], [0, 0, 1]], dtype='float32')
 
-#marker size in inches
+# marker size in inches
 marker_size = 3.5
 
 # tmp cache
-last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
+last_pose = cozmo.util.Pose(0, 0, 0, angle_z=cozmo.util.Angle(degrees=0))
 flag_odom_init = False
 
 # goal location for the robot to drive to, (x, y, theta)
-goal = (6,10,0)
+goal = (6, 10, 0)
 
 # map
 Map_filename = "map_arena.json"
@@ -39,44 +35,42 @@ grid = CozGrid(Map_filename)
 gui = GUIWindow(grid)
 
 
-
 async def image_processing(robot):
-
     global camK, marker_size
 
     event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
 
     # convert camera image to opencv format
     opencv_image = np.asarray(event.image)
-    
+
     # detect markers
     markers = detect_markers(opencv_image, marker_size, camK)
-    
+
     # show markers
     for marker in markers:
         marker.highlite_marker(opencv_image, draw_frame=True, camK=camK)
-        #print("ID =", marker.id);
-        #print(marker.contours);
+        # print("ID =", marker.id);
+        # print(marker.contours);
     cv2.imshow("Markers", opencv_image)
 
     return markers
 
-#calculate marker pose
+
+# calculate marker pose
 def cvt_2Dmarker_measurements(ar_markers):
-    
     marker2d_list = [];
-    
+
     for m in ar_markers:
         R_1_2, J = cv2.Rodrigues(m.rvec)
-        R_1_1p = np.matrix([[0,0,1], [0,-1,0], [1,0,0]])
-        R_2_2p = np.matrix([[0,-1,0], [0,0,-1], [1,0,0]])
+        R_1_1p = np.matrix([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+        R_2_2p = np.matrix([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
         R_2p_1p = np.matmul(np.matmul(inv(R_2_2p), inv(R_1_2)), R_1_1p)
-        #print('\n', R_2p_1p)
-        yaw = -math.atan2(R_2p_1p[2,0], R_2p_1p[0,0])
-        
+        # print('\n', R_2p_1p)
+        yaw = -math.atan2(R_2p_1p[2, 0], R_2p_1p[0, 0])
+
         x, y = m.tvec[2][0] + 0.5, -m.tvec[0][0]
-        print('x =', x, 'y =', y,'theta =', yaw)
-        
+        print('x =', x, 'y =', y, 'theta =', yaw)
+
         # remove any duplate markers
         dup_thresh = 2.0
         find_dup = False
@@ -85,34 +79,33 @@ def cvt_2Dmarker_measurements(ar_markers):
                 find_dup = True
                 break
         if not find_dup:
-            marker2d_list.append((x,y,math.degrees(yaw)))
+            marker2d_list.append((x, y, math.degrees(yaw)))
 
     return marker2d_list
 
 
-#compute robot odometry based on past and current pose
+# compute robot odometry based on past and current pose
 def compute_odometry(curr_pose, cvt_inch=True):
     global last_pose, flag_odom_init
     last_x, last_y, last_h = last_pose.position.x, last_pose.position.y, \
-        last_pose.rotation.angle_z.degrees
+                             last_pose.rotation.angle_z.degrees
     curr_x, curr_y, curr_h = curr_pose.position.x, curr_pose.position.y, \
-        curr_pose.rotation.angle_z.degrees
-    
-    dx, dy = rotate_point(curr_x-last_x, curr_y-last_y, -last_h)
+                             curr_pose.rotation.angle_z.degrees
+
+    dx, dy = rotate_point(curr_x - last_x, curr_y - last_y, -last_h)
     if cvt_inch:
         dx, dy = dx / 25.6, dy / 25.6
 
     return (dx, dy, diff_heading_deg(curr_h, last_h))
 
-#particle filter functionality
-class ParticleFilter:
 
+# particle filter functionality
+class ParticleFilter:
     def __init__(self, grid):
         self.particles = Particle.create_random(PARTICLE_COUNT, grid)
         self.grid = grid
 
     def update(self, odom, r_marker_list):
-
         # ---------- Motion model update ----------
         self.particles = motion_update(self.particles, odom)
 
@@ -126,12 +119,15 @@ class ParticleFilter:
 
 
 async def run(robot: cozmo.robot.Robot):
-
     global flag_odom_init, last_pose
     global grid, gui
 
     # start streaming
     robot.camera.image_stream_enabled = True
+
+    robot.set_head_angle(degrees(0)).wait_for_completed()
+    robot.set_lift_height(1).wait_for_completed()
+
     while True:
         # Start particle filter
         pf = ParticleFilter(grid)
@@ -145,25 +141,33 @@ async def run(robot: cozmo.robot.Robot):
         markerPose = cvt_2Dmarker_measurements(markers)
 
         # Update the particle filter using above information
-        particleUpdate = pf.update(odom, markerPose)
+        (m_x, m_y, m_h, m_confident) = pf.update(odom, markerPose)
 
         # Update particle filter GUI for debugging
         gui.show_particles(pf.particles)
-        gui.show_mean(particleUpdate[0], particleUpdate[1], particleUpdate[2], particleUpdate[3])
+        gui.show_mean(m_x, m_y, m_h, m_confident)
         gui.updated.set()
 
         # Determine COZMO actions based on state of localization
-        # Have robot drive to goal
-            # Play animation then stand still
+        if m_confident:
+            # Have robot drive to goal, play animation then stand still
+            robot.turn_in_place(degrees(0)).wait_for_completed()
+            robot.drive_straight(distance_mm(0), speed_mmps(0)).wait_for_completed()
+            robot.say_text("Confident", use_cozmo_voice=False, duration_scalar=0.5, voice_pitch=1).wait_for_completed()
+        else:
+            # spin
+            robot.turn_in_place(degrees(15)).wait_for_completed()
+
+
 
         # Make robust to kidnapping
-            # Begin searching again
+        # Begin searching again
         if robot.is_picked_up:
-            #Begin search agent again -> add particles?
+            # Begin search agent again -> add particles?
             await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
 
+
 class CozmoThread(threading.Thread):
-    
     def __init__(self):
         threading.Thread.__init__(self, daemon=False)
 
@@ -173,7 +177,6 @@ class CozmoThread(threading.Thread):
 
 
 if __name__ == '__main__':
-
     # cozmo thread
     cozmo_thread = CozmoThread()
     cozmo_thread.start()
