@@ -1,3 +1,5 @@
+#Paras Jain, Connor Lindquist
+
 #!/usr/bin/env python3
 
 ''' Get a raw frame from camera and display in OpenCV
@@ -136,11 +138,21 @@ async def run(robot: cozmo.robot.Robot):
     #start particle filter
     pf = ParticleFilter(grid)
 
-    ###################
-
-    ############YOUR CODE HERE#################
-
-    ###################
+    # Obtain odometry information
+    odom = compute_odometry(robot.pose)
+    # Obtain list of currently seen markers and their poses
+    markers = image_processing(robot)
+    markerPose = cvt_2Dmarker_measurements(markers)
+    # Update the particle filter using above information
+    particleUpdate = pf.update(odom, markerPose)
+    # Update particle filter GUI for debugging
+    gui.show_particles(pf.particles)
+    # Determine COZMO actions based on state of localization
+    # Have robot drive to goal
+        # Play animation then stand still
+    # Make robust to kidnapping
+        # Make angry face (extra credit)
+        # Begin searching again
 
 
 class CozmoThread(threading.Thread):
