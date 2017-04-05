@@ -8,6 +8,7 @@ import threading
 
 import cozmo
 import cv2
+import numpy as np
 from cozmo.util import degrees, distance_mm, speed_mmps
 from numpy.linalg import inv
 
@@ -125,8 +126,8 @@ async def run(robot: cozmo.robot.Robot):
     # start streaming
     robot.camera.image_stream_enabled = True
 
-    robot.set_head_angle(degrees(0)).wait_for_completed()
-    robot.set_lift_height(1).wait_for_completed()
+    await robot.set_head_angle(degrees(0)).wait_for_completed()
+    await robot.set_lift_height(0).wait_for_completed()
 
     while True:
         # Start particle filter
@@ -137,8 +138,8 @@ async def run(robot: cozmo.robot.Robot):
 
         # Obtain list of currently seen markers and their poses
         markers = await image_processing(robot)
-        cv2.waitKey(1)
         markerPose = cvt_2Dmarker_measurements(markers)
+        # cv2.waitKey(1)
 
         # Update the particle filter using above information
         (m_x, m_y, m_h, m_confident) = pf.update(odom, markerPose)
@@ -148,22 +149,38 @@ async def run(robot: cozmo.robot.Robot):
         gui.show_mean(m_x, m_y, m_h, m_confident)
         gui.updated.set()
 
+        print(str((m_x, m_y, m_h, m_confident)), markerPose)
+
         # Determine COZMO actions based on state of localization
         if m_confident:
+            await robot.drive_wheels(0, 0)
+
             # Have robot drive to goal, play animation then stand still
-            robot.turn_in_place(degrees(0)).wait_for_completed()
-            robot.drive_straight(distance_mm(0), speed_mmps(0)).wait_for_completed()
-            robot.say_text("Confident", use_cozmo_voice=False, duration_scalar=0.5, voice_pitch=1).wait_for_completed()
+            g_x, g_y, g_theta = goal
+
+            dx = m_x - g_x
+            dy = m_y = g_y
+            dist = math.sqrt(dx ** 2 + dy ** 2) * 25
+            dtheta = math.degrees(math.atan2(dy, dx))
+
+            degrees_to_rotate = dtheta - m_h
+
+            await robot.turn_in_place(degrees(degrees_to_rotate)).wait_for_completed()
+            await robot.drive_straight(distance_mm(dist * 0.75), speed_mmps(dist * 0.5)).wait_for_completed()
+            await robot.say_text("Confident", use_cozmo_voice=False, duration_scalar=0.5, voice_pitch=1).wait_for_completed()
         else:
-            # spin
-            robot.turn_in_place(degrees(15)).wait_for_completed()
+            print("Turning")
+            if len(markerPose) > 0:
+                await robot.drive_wheels(0, 0)
+            else:
+                await robot.drive_wheels(10, -10)
+
 
 
 
         # Make robust to kidnapping
         # Begin searching again
-        if robot.is_picked_up:
-            # Begin search agent again -> add particles?
+        if robot.is_picked_up: # Begin search agent again -> add particles?
             await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
 
 

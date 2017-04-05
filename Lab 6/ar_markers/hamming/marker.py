@@ -52,18 +52,18 @@ class HammingMarker(object):
 
 
     def draw_contour(self, img, color=(0, 255, 0), linewidth=2):
-        if self.contours != None:
+        if self.contours is not None:
             cv2.drawContours(img, [self.contours], -1, color, linewidth)
 
 
     def draw_origin(self, img, color=(0, 0, 255), radius=2, linewidth=3):
-        if self.origin != None:
+        if self.origin is not None:
             cv2.circle(img, self.origin, radius=radius, color=color, thickness=linewidth)
 
 
     def draw_local_frame(self, img, camK, linewidth=3):
         # only display when pose exist
-        if self.size == None or self.rvec == None or self.tvec == None:
+        if self.size is None or self.rvec is None or self.tvec is None:
             return
         # get plot obj points
         obj_points = np.array([(0,0,0), (0.8*self.size,0,0), (0,0.8*self.size,0), (0,0,0.8*self.size)], \
@@ -80,7 +80,7 @@ class HammingMarker(object):
             linewidth=2, draw_frame=False, camK=None):
         self.draw_contour(img, color=contour_color, linewidth=linewidth)
         if draw_frame:
-            if camK == None:
+            if camK is None:
                 raise ValueError("Require camK to plot local frame.")
             self.draw_local_frame(img, camK)
         else:
