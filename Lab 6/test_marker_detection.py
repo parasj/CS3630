@@ -70,6 +70,7 @@ def display_opencv(robot: cozmo.robot.Robot):
                 #print(marker.contours);
 
             cv2.imshow("Markers", open_cv_image)
+            cv2.waitKey(1)
 
             m2d_list = cvt_marker_measurements(markers)
             print(m2d_list)
