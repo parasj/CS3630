@@ -89,7 +89,7 @@ def cvt_2Dmarker_measurements(ar_markers):
         if not find_dup:
             marker2d_list.append((x,y,math.degrees(yaw)))
 
-return marker2d_list
+    return marker2d_list
 
 
 #compute robot odometry based on past and current pose
@@ -137,7 +137,6 @@ async def run(robot: cozmo.robot.Robot):
 
     #start particle filter
     pf = ParticleFilter(grid)
-
     # Obtain odometry information
     odom = compute_odometry(robot.pose)
     # Obtain list of currently seen markers and their poses
@@ -153,7 +152,9 @@ async def run(robot: cozmo.robot.Robot):
     # Make robust to kidnapping
         # Make angry face (extra credit)
         # Begin searching again
-
+    if robot.is_picked_up:
+        #add particles?
+        await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
 
 class CozmoThread(threading.Thread):
     
