@@ -150,10 +150,9 @@ async def run(robot: cozmo.robot.Robot):
     # Have robot drive to goal
         # Play animation then stand still
     # Make robust to kidnapping
-        # Make angry face (extra credit)
         # Begin searching again
     if robot.is_picked_up:
-        #add particles?
+        #Begin search agent again -> add particles?
         await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
 
 class CozmoThread(threading.Thread):
