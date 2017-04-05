@@ -1,5 +1,3 @@
-#Paras Jain, Connor Lindquist
-
 #!/usr/bin/env python3
 
 ''' Get a raw frame from camera and display in OpenCV
@@ -134,26 +132,27 @@ async def run(robot: cozmo.robot.Robot):
 
     # start streaming
     robot.camera.image_stream_enabled = True
-
-    #start particle filter
-    pf = ParticleFilter(grid)
-    # Obtain odometry information
-    odom = compute_odometry(robot.pose)
-    # Obtain list of currently seen markers and their poses
-    markers = image_processing(robot)
-    markerPose = cvt_2Dmarker_measurements(markers)
-    # Update the particle filter using above information
-    particleUpdate = pf.update(odom, markerPose)
-    # Update particle filter GUI for debugging
-    gui.show_particles(pf.particles)
-    # Determine COZMO actions based on state of localization
-    # Have robot drive to goal
-        # Play animation then stand still
-    # Make robust to kidnapping
-        # Begin searching again
-    if robot.is_picked_up:
-        #Begin search agent again -> add particles?
-        await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
+    while True:
+        #start particle filter
+        pf = ParticleFilter(grid)
+        # Obtain odometry information
+        odom = compute_odometry(robot.pose)
+        # Obtain list of currently seen markers and their poses
+        markers = await image_processing(robot)
+        cv2.waitKey(1)
+        markerPose = cvt_2Dmarker_measurements(markers)
+        # Update the particle filter using above information
+        particleUpdate = pf.update(odom, markerPose)
+        # Update particle filter GUI for debugging
+        gui.show_particles(pf.particles)
+        # Determine COZMO actions based on state of localization
+        # Have robot drive to goal
+            # Play animation then stand still
+        # Make robust to kidnapping
+            # Begin searching again
+        if robot.is_picked_up:
+            #Begin search agent again -> add particles?
+            await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).waitForCompleted()
 
 class CozmoThread(threading.Thread):
     
@@ -175,4 +174,3 @@ if __name__ == '__main__':
     grid = CozGrid(Map_filename)
     gui = GUIWindow(grid)
     gui.start()
-
