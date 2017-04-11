@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Paras Jain, Connor Lindquist
+# !/usr/bin/env python3
 
 ''' Get a raw frame from camera and display in OpenCV
 By press space, save the image from 001.bmp to ...
@@ -71,7 +72,7 @@ def cvt_2Dmarker_measurements(ar_markers):
         yaw = -math.atan2(R_2p_1p[2, 0], R_2p_1p[0, 0])
 
         x, y = m.tvec[2][0] + 0.5, -m.tvec[0][0]
-        print('x =', x, 'y =', y, 'theta =', yaw)
+        # print('x =', x, 'y =', y, 'theta =', yaw)
 
         # remove any duplate markers
         dup_thresh = 2.0
@@ -120,6 +121,9 @@ class ParticleFilter:
         return (m_x, m_y, m_h, m_confident)
 
 
+def beep():
+    print("\a")
+
 async def run(robot: cozmo.robot.Robot):
     global flag_odom_init, last_pose
     global grid, gui
@@ -133,22 +137,39 @@ async def run(robot: cozmo.robot.Robot):
     # Start particle filter
     pf = ParticleFilter(grid)
 
+    state = 'searching'
+    curr_action = None
+
     while True:
-        # Obtain odometry information
-        odom = compute_odometry(robot.pose)
-        last_pose = robot.pose
+        print(state, "Is picked up: ", robot.is_picked_up, curr_action)
 
-        # Obtain list of currently seen markers and their poses
-        markers = await image_processing(robot)
-        markerPose = cvt_2Dmarker_measurements(markers)
+        if abs(robot.head_angle.degrees) > 5:
+            await robot.set_head_angle(degrees(0)).wait_for_completed()
 
-        if robot.is_picked_up: # Begin search agent again -> add particles?
+        if robot.is_picked_up:  # Begin search agent again -> add particles?
+            beep()
+            beep()
+            beep()
+            print("IN THE AIR!")
             robot.stop_all_motors()
-            await robot.say_text("Put me down!", use_cozmo_voice=False, duration_scalar=1,
-                                 voice_pitch=1).wait_for_completed()
+            robot.abort_all_actions()
+            await robot.drive_wheels(0, 0)
+            await robot.say_text("Hey, put me down!").wait_for_completed()
             pf.particles = Particle.create_random(PARTICLE_COUNT, grid)
             await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).wait_for_completed()
+            state = 'searching'
+            curr_action = None
+            await robot.set_head_angle(degrees(0)).wait_for_completed()
+            await robot.set_lift_height(0).wait_for_completed()
         else:
+            # Obtain odometry information
+            odom = compute_odometry(robot.pose)
+            last_pose = robot.pose
+
+            # Obtain list of currently seen markers and their poses
+            markers = await image_processing(robot)
+            markerPose = cvt_2Dmarker_measurements(markers)
+
             # Update the particle filter using above information
             (m_x, m_y, m_h, m_confident) = pf.update(odom, markerPose)
 
@@ -157,46 +178,44 @@ async def run(robot: cozmo.robot.Robot):
             gui.show_mean(m_x, m_y, m_h, m_confident)
             gui.updated.set()
 
-            print(str((m_x, m_y, m_h, m_confident)), len(markerPose))
+            # positional calculations
+            g_x, g_y, g_theta = goal
+            dx, dy = (g_x - m_x, g_y - m_y)
+            cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55, math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
+            dtheta = math.degrees(math.atan2(dy + cx, dx + cy))
+            dist = math.sqrt((dx * 25) ** 2 + (dy * 25) ** 2)
+            degrees_to_rotate = dtheta - m_h
 
-            # Determine COZMO actions based on state of localization
-            if m_confident:
-                await robot.drive_wheels(0, 0)
-
-                if robot.is_picked_up:
-                    continue
-
-                # Have robot drive to goal, play animation then stand still
-                g_x, g_y, g_theta = goal
-
-                dx = g_x - m_x
-                dy = g_y - m_y
-                dtheta = math.degrees(math.atan2(dy, dx))
-
-                dist = math.sqrt( (dx * 25) ** 2 + (dy * 25) ** 2 )
-
-                degrees_to_rotate = dtheta - m_h
-
-                print(goal, (m_x, m_y, m_h, m_confident), (dx, dy, dtheta), degrees_to_rotate)
-
-                if dist > 20.0:
-                    if robot.is_picked_up:
-                        continue
-                    if abs(degrees_to_rotate) > 5:
-                        robot.turn_in_place(degrees(degrees_to_rotate), in_parallel=True)
-                    if robot.is_picked_up:
-                        continue
-                    await robot.drive_straight(distance_mm(max(dist / 5, 5)), speed_mmps(300), should_play_anim=False, in_parallel=True).wait_for_completed()
-                else:
-                    robot.stop_all_motors()
-                    await robot.turn_in_place(degrees(-1 * m_h)).wait_for_completed()
-                    await robot.say_text("Done", use_cozmo_voice=False, duration_scalar=1, voice_pitch=1).wait_for_completed()
-                    await robot.play_anim_trigger(cozmo.anim.Triggers.FistBumpSuccess).wait_for_completed()
-
-                    while True:
-                        await robot.turn_in_place(degrees(0)).wait_for_completed()
-            else:
+            if state == 'searching':
                 await robot.drive_wheels(20, -20)
+                if m_confident:
+                    beep()
+                    await robot.drive_wheels(0, 0)
+                    print("Turning", degrees_to_rotate)
+                    state = 'turning'
+                    curr_action = robot.turn_in_place(degrees(degrees_to_rotate))
+            elif state == 'turning':
+                if curr_action.is_completed:
+                    beep()
+                    print("Driving", max(dist / 2, 5))
+                    state = 'driving'
+                    curr_action = robot.drive_straight(distance_mm(max(dist / 4, 5)), speed_mmps(75),
+                                                       should_play_anim=False)
+            elif state == 'driving':
+                if curr_action.is_completed:
+                    if dist < 25.0:
+                        beep()
+                        print("Stopping", max(dist / 3, 5))
+                        robot.stop_all_motors()
+                        await robot.turn_in_place(degrees(-1 * m_h)).wait_for_completed()
+                        await robot.say_text("Done", use_cozmo_voice=False, duration_scalar=1,
+                                             voice_pitch=1).wait_for_completed()
+                        await robot.play_anim_trigger(cozmo.anim.Triggers.FistBumpSuccess).wait_for_completed()
+                        state = 'at_goal'
+                        curr_action = None
+                    else:
+                        state = 'searching'
+                        curr_action = None
 
 
 class CozmoThread(threading.Thread):
