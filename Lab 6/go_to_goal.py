@@ -143,20 +143,24 @@ async def run(robot: cozmo.robot.Robot):
     while True:
         print(state, "Is picked up: ", robot.is_picked_up, curr_action)
 
-        if abs(robot.head_angle.degrees) > 5:
+        if (curr_action is None or curr_action.is_completed) and abs(robot.head_angle.degrees) > 5:
             await robot.set_head_angle(degrees(0)).wait_for_completed()
 
         if robot.is_picked_up:  # Begin search agent again -> add particles?
             beep()
             beep()
             beep()
+            beep()
+            beep()
+            beep()
             print("IN THE AIR!")
-            robot.stop_all_motors()
-            robot.abort_all_actions()
             await robot.drive_wheels(0, 0)
-            await robot.say_text("Hey, put me down!").wait_for_completed()
-            pf.particles = Particle.create_random(PARTICLE_COUNT, grid)
+            if curr_action is not None and not curr_action.is_completed:
+                curr_action.abort()
             await robot.play_anim_trigger(cozmo.anim.Triggers.ReactToPickup).wait_for_completed()
+
+            pf.particles = Particle.create_random(PARTICLE_COUNT, grid)
+
             state = 'searching'
             curr_action = None
             await robot.set_head_angle(degrees(0)).wait_for_completed()
