@@ -37,7 +37,7 @@ def find_ball(opencv_image, debug=False):
     opencv_image = cv2.morphologyEx(opencv_image, cv2.MORPH_OPEN, kern)
 
 
-    circles = cv2.HoughCircles(opencv_image, cv2.HOUGH_GRADIENT, 1.5, 500, param1=125, param2=30);
+    circles = cv2.HoughCircles(opencv_image,cv2.HOUGH_GRADIENT,1,90, param1=30,param2=30,minRadius=10,maxRadius=0)
 
     if circles is not None:
         circles = np.round(circles[0, :]).astype("int")
