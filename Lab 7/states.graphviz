@@ -1,0 +1,17 @@
+digraph G {
+    start -> localizing;
+    localizing -> localized [label="  pf confident"];
+    localized -> driving_to_search [label="  drive to search position"];
+    driving_to_search -> searching_for_ball [label="  done driving to ball search position"];
+    localized -> start [label="  pf not confident"];
+    searching_for_ball -> start [label="  pf not confident"];
+    going_to_kick -> start [label="  pf not confident"];
+    ready_to_kick -> start [label="  pf not confident"];
+    
+    
+    searching_for_ball -> going_to_kick [label="  ball found"];
+    going_to_kick -> ready_to_kick [label="  at kicking position"];
+    ready_to_kick -> kicking [label="  ball found"];
+    kicking -> done [label="  at red goal"];
+    done -> start;
+}
