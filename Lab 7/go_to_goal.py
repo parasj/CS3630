@@ -48,7 +48,7 @@ grid = CozGrid(Map_filename)
 gui = GUIWindow(grid)
 
 # task config
-init_search_position = Point(6, 8, 0)
+init_search_position = Point(4, 9, 0)
 
 async def image_processing(robot):
     global camK, marker_size
