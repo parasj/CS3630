@@ -11,7 +11,7 @@ from collections import namedtuple
 import cozmo
 import cv2
 import numpy as np
-from PIL import ImageDraw
+import sys
 from cozmo.util import degrees, distance_mm, speed_mmps
 from numpy.linalg import inv
 
@@ -20,6 +20,11 @@ from ar_markers.hamming.detect import detect_markers
 from gui import GUIWindow
 from particle_filter import *
 from utils import *
+
+try:
+    from PIL import ImageDraw, ImageFont
+except ImportError:
+    sys.exit('run `pip3 install --user Pillow numpy` to run this example')
 
 Point = namedtuple('Point', ['x', 'y', 'z'])
 State = namedtuple('State', ['state', 'data'])
@@ -43,7 +48,6 @@ gui = GUIWindow(grid)
 
 # task config
 init_search_position = Point(6, 10, 0)
-
 
 async def image_processing(robot):
     global camK, marker_size
@@ -169,6 +173,9 @@ async def run(robot: cozmo.robot.Robot):
     state = 'searching'
     curr_action = None
 
+    robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
+    robot.world.image_annotator.add_annotator('ball', BallAnnotator)
+
     while True:
         print(state, "Is picked up: ", robot.is_picked_up, curr_action)
 
@@ -230,14 +237,44 @@ async def run(robot: cozmo.robot.Robot):
                 BallAnnotator.ball = ball_found
                 if ball_found is not None:
                     x, y, radius = ball_found
-                    print(x, y,
-                          radius)  # await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
+                    print(x, y, radius)
                     state = 'lock-in'
                 else:
                     await robot.turn_in_place(degrees(60)).wait_for_completed()
+                    
             elif state == 'lock-in':
                 print("lock-in")
+# Define a decorator as a subclass of Annotator; displays battery voltage
+class BatteryAnnotator(cozmo.annotate.Annotator):
+    def apply(self, image, scale):
+        d = ImageDraw.Draw(image)
+        bounds = (0, 0, image.width, image.height)
+        batt = self.world.robot.battery_voltage
+        text = cozmo.annotate.ImageText('BATT %.1fv' % batt, color='green')
+        text.render(d, bounds)
 
+# Define a decorator as a subclass of Annotator; displays the ball
+class BallAnnotator(cozmo.annotate.Annotator):
+
+    ball = None
+
+    def apply(self, image, scale):
+        d = ImageDraw.Draw(image)
+        bounds = (0, 0, image.width, image.height)
+
+        if BallAnnotator.ball is not None:
+
+            #double size of bounding box to match size of rendered image
+            BallAnnotator.ball = np.multiply(BallAnnotator.ball,2)
+
+            #define and display bounding box with params:
+            #msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
+            box = cozmo.util.ImageBox(BallAnnotator.ball[0]-BallAnnotator.ball[2],
+                                      BallAnnotator.ball[1]-BallAnnotator.ball[2],
+                                      BallAnnotator.ball[2]*2, BallAnnotator.ball[2]*2)
+            cozmo.annotate.add_img_box_to_image(image, box, "green", text=None)
+
+            BallAnnotator.ball = None
 
 class CozmoThread(threading.Thread):
     def __init__(self):
@@ -250,10 +287,10 @@ class CozmoThread(threading.Thread):
 
 if __name__ == '__main__':
     # cozmo thread
-    cozmo_thread = CozmoThread()
-    cozmo_thread.start()
-
+    # cozmo_thread = CozmoThread()
+    # cozmo_thread.start()
+    cozmo.run_program(run, use_viewer = True, force_viewer_on_top = True)
     # init
-    grid = CozGrid(Map_filename)
-    gui = GUIWindow(grid)
-    gui.start()
+    # grid = CozGrid(Map_filename)
+    # gui = GUIWindow(grid)
+    # gui.start()
