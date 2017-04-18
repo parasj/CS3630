@@ -6,37 +6,43 @@ By press space, save the image from 001.bmp to ...
 '''
 
 import threading
+from collections import namedtuple
 
 import cozmo
 import cv2
 import numpy as np
-import sys
+from PIL import ImageDraw
 from cozmo.util import degrees, distance_mm, speed_mmps
 from numpy.linalg import inv
-import find_ball
 
+import find_ball
 from ar_markers.hamming.detect import detect_markers
 from gui import GUIWindow
 from particle_filter import *
 from utils import *
 
-# camera params
-camK = np.matrix([[295, 0, 160], [0, 295, 120], [0, 0, 1]], dtype='float32')
+Point = namedtuple('Point', ['x', 'y', 'z'])
+State = namedtuple('State', ['state', 'data'])
 
-# marker size in inches
-marker_size = 3.5
+###
+# Config
+###
 
-# tmp cache
+# localization
 last_pose = cozmo.util.Pose(0, 0, 0, angle_z=cozmo.util.Angle(degrees=0))
 flag_odom_init = False
 
-# goal location for the robot to drive to, (x, y, theta)
-goal = (6, 10, 0)
+# image processing configuration
+camK = np.matrix([[295, 0, 160], [0, 295, 120], [0, 0, 1]], dtype='float32')  # camera params
+marker_size = 3.5  # marker size in inches
 
 # map
 Map_filename = "map_arena.json"
 grid = CozGrid(Map_filename)
 gui = GUIWindow(grid)
+
+# task config
+init_search_position = Point(6, 10, 0)
 
 
 async def image_processing(robot):
@@ -102,8 +108,8 @@ def compute_odometry(curr_pose, cvt_inch=True):
 
     return (dx, dy, diff_heading_deg(curr_h, last_h))
 
-class BallAnnotator(cozmo.annotate.Annotator):
 
+class BallAnnotator(cozmo.annotate.Annotator):
     ball = None
 
     def apply(self, image, scale):
@@ -111,18 +117,18 @@ class BallAnnotator(cozmo.annotate.Annotator):
         bounds = (0, 0, image.width, image.height)
 
         if BallAnnotator.ball is not None:
+            # double size of bounding box to match size of rendered image
+            BallAnnotator.ball = np.multiply(BallAnnotator.ball, 2)
 
-            #double size of bounding box to match size of rendered image
-            BallAnnotator.ball = np.multiply(BallAnnotator.ball,2)
-
-            #define and display bounding box with params:
-            #msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
-            box = cozmo.util.ImageBox(BallAnnotator.ball[0]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[1]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[2]*2, BallAnnotator.ball[2]*2)
+            # define and display bounding box with params:
+            # msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
+            box = cozmo.util.ImageBox(BallAnnotator.ball[0] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[1] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[2] * 2, BallAnnotator.ball[2] * 2)
             cozmo.annotate.add_img_box_to_image(image, box, "green", text=None)
 
             BallAnnotator.ball = None
+
 
 # particle filter functionality
 class ParticleFilter:
@@ -145,6 +151,7 @@ class ParticleFilter:
 
 def beep():
     print("\a")
+
 
 async def run(robot: cozmo.robot.Robot):
     global flag_odom_init, last_pose
@@ -194,7 +201,8 @@ async def run(robot: cozmo.robot.Robot):
             # positional calculations
             g_x, g_y, g_theta = goal
             dx, dy = (g_x - m_x, g_y - m_y)
-            cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55, math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
+            cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55,
+                      math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
             dtheta = math.degrees(math.atan2(dy + cx, dx + cy))
             dist = math.sqrt((dx * 25) ** 2 + (dy * 25) ** 2)
             degrees_to_rotate = dtheta - m_h
@@ -222,7 +230,8 @@ async def run(robot: cozmo.robot.Robot):
                 BallAnnotator.ball = ball_found
                 if ball_found is not None:
                     x, y, radius = ball_found
-                    print(x,y, radius) # await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
+                    print(x, y,
+                          radius)  # await robot.play_anim_trigger(cozmo.anim.Triggers.CubePounceFake).wait_for_completed()
                     state = 'lock-in'
                 else:
                     await robot.turn_in_place(degrees(60)).wait_for_completed()
