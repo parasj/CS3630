@@ -7,12 +7,13 @@ By press space, save the image from 001.bmp to ...
 
 import threading
 from collections import namedtuple
+from datetime import datetime
 
 import cozmo
 import cv2
 import numpy as np
 import sys
-from cozmo.util import degrees, distance_mm, speed_mmps
+from cozmo.util import degrees, distance_mm, speed_mmps, Pose
 from numpy.linalg import inv
 
 import find_ball
@@ -47,7 +48,7 @@ grid = CozGrid(Map_filename)
 gui = GUIWindow(grid)
 
 # task config
-init_search_position = Point(6, 10, 0)
+init_search_position = Point(6, 8, 0)
 
 async def image_processing(robot):
     global camK, marker_size
@@ -180,14 +181,64 @@ async def run(robot: cozmo.robot.Robot):
     # Start particle filter
     pf = ParticleFilter(grid)
 
-    state = 'searching'
-    curr_action = None
+    state = State(state='start', data={})
 
     robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
     robot.world.image_annotator.add_annotator('ball', BallAnnotator)
 
     while True:
-        print(state, "Is picked up: ", robot.is_picked_up, curr_action)
+        print(str(datetime.now()), state)
+
+        # Obtain odometry information
+        odom = compute_odometry(robot.pose)
+        last_pose = robot.pose
+
+        # Obtain list of currently seen markers and their poses
+        markers = await image_processing(robot)
+        markerPose = cvt_2Dmarker_measurements(markers)
+
+        # Update the particle filter using above information
+        (m_x, m_y, m_h, m_confident) = pf.update(odom, markerPose)
+
+        # Update particle filter GUI for debugging
+        gui.show_particles(pf.particles)
+        gui.show_mean(m_x, m_y, m_h, m_confident)
+        gui.updated.set()
+
+        if state.state == 'start':
+            await robot.drive_wheels(-15, 15)
+            state = State('localizing', {})
+        elif state.state == 'localizing':
+            if m_confident:
+                await robot.drive_wheels(0, 0)
+                await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
+                state = State('localized', {})
+        elif state.state == 'localized':
+            if not m_confident:
+                state = State('start', {})
+            else:
+                rpos = Point(m_x, m_y, m_h)
+                dpos = Point(init_search_position.x - rpos.x, init_search_position.y - rpos.y, 0)
+                pose = Pose(dpos.x * 25.4, dpos.y * 25.4, 0, angle_z=cozmo.util.Angle(degrees=0))
+                await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
+                action = robot.go_to_pose(pose, relative_to_robot=True)
+                state = State('driving_to_search', {'action': action})
+        elif state.state == 'driving_to_search':
+            if not m_confident:
+                state = State('start', {})
+            elif state.data['action'].is_completed:
+                state = State('searching_for_ball', {})
+                await robot.drive_wheels(-25, 25)
+        elif state.state == 'searching_for_ball':
+            pass
+        elif state.state == 'going_to_kick':
+            pass
+        elif state.state == 'ready_to_kick':
+            pass
+        elif state.state == 'kicking':
+            pass
+        elif state.state == 'done':
+            state = State('start', {})
 
         if abs(robot.head_angle.degrees) > 5:
             await robot.set_head_angle(degrees(0)).wait_for_completed()
@@ -251,7 +302,7 @@ async def run(robot: cozmo.robot.Robot):
                     state = 'lock-in'
                 else:
                     await robot.turn_in_place(degrees(60)).wait_for_completed()
-                    
+
             elif state == 'lock-in':
                 print("lock-in")
 
