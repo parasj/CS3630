@@ -300,22 +300,35 @@ async def run(robot: cozmo.robot.Robot):
                     curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
                                                              speed_mmps(75)).wait_for_completed()
                 else:
+                    print("drive backward", lat_dist)
                     curr_action = await robot.turn_in_place(degrees(-m_h + 90)).wait_for_completed()
                     curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
                                                              speed_mmps(75)).wait_for_completed()
-                    print("drive backward")
-
-                    # slope = (9 - ball_all_y)/(26- ball_all_x)
-                    # b = 9 - (slope * 26)
-                    # print("y="+str(slope)+"x+"+str(b))
-                    # a = input()
-                    # await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
-                    # print(last_pose.rotation.angle_z.degrees)
-                    # if(float(last_pose) < 0):
-                    #     x_dist = math.sin(last_pose) * distance_to_ball
-                    #     y_dist = math.cos(last_pose) * distance_to_ball
-                    #     print(x_dist, y_dist)
-
+                state = 'kick_align'
+            elif state == 'kick_align':
+                event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
+                opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
+                ball_found = find_ball.find_ball(opencv_image)
+                BallAnnotator.ball = ball_found
+                if ball_found is not None:
+                    x, y, radius = ball_found
+                    dx = 320 / 2 - x  # positive = ball is on left
+                    deg_to_turn = dx / (320.0 / 2.0) * 30
+                    print(deg_to_turn, "deg_to_turn")
+                    m_h += deg_to_turn
+                    await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
+                    if 5 >= deg_to_turn >= -5:
+                        state = 'kick_drive'
+            elif state == 'kick_drive':
+                if math.sqrt((m_x - 26) ** 2 + (m_y - 9) ** 2) < 1:
+                    curr_action = await robot.turn_in_place(degrees(-m_h + 180)).wait_for_completed()
+                    curr_action = await robot.drive_straight(distance_mm((m_x - 6.0) * 25),
+                                                             speed_mmps(75)).wait_for_completed()
+                    state = 'searching'
+                else:
+                    curr_action = await robot.drive_straight(distance_mm(50),
+                                                         speed_mmps(75)).wait_for_completed()
+                    state = 'kick_align'
 
 # Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
