@@ -283,6 +283,14 @@ async def run(robot: cozmo.robot.Robot):
                     await robot.turn_in_place(degrees(80-m_h)).wait_for_completed()
                 print("X_ball component: ", ball_x, " Y_ball component: ", ball_y)
                 print("Position x: ", m_x + ball_x, " Position y: ", m_y + ball_y)
+
+                slopeY = 9.0 - ball_all_y
+                slopeX = 26.0 - ball_all_x
+                slope = slopeY / slopeX
+                dx = ball_all_y - m_x
+                gX = ball_all_x - dx
+                gY = ball_all_y - dx * slope
+
                 
                 # slope = (9 - ball_all_y)/(26- ball_all_x)
                 # b = 9 - (slope * 26)
