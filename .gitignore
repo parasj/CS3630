@@ -43,3 +43,5 @@ crashlytics-build.properties
 fabric.properties
 
 Lab 5/.idea/workspace.xml
+
+**/*.pyc

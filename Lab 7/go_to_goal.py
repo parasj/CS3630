@@ -11,7 +11,7 @@ import cozmo
 import cv2
 import numpy as np
 import sys
-from cozmo.util import degrees, distance_mm, speed_mmps
+from cozmo.util import degrees, distance_mm, speed_mmps, Pose
 from numpy.linalg import inv
 import find_ball
 
@@ -99,7 +99,7 @@ def compute_odometry(curr_pose, cvt_inch=True):
                              last_pose.rotation.angle_z.degrees
     curr_x, curr_y, curr_h = curr_pose.position.x, curr_pose.position.y, \
                              curr_pose.rotation.angle_z.degrees
-
+    print(curr_h)
     dx, dy = rotate_point(curr_x - last_x, curr_y - last_y, -last_h)
     if cvt_inch:
         dx, dy = dx / 25.6, dy / 25.6
@@ -169,6 +169,18 @@ async def run(robot: cozmo.robot.Robot):
     robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
     robot.world.image_annotator.add_annotator('ball', BallAnnotator)
 
+    '''
+    Determine distance
+    '''
+    # while True:
+    #     event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
+    #     opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
+    #     ball_found = find_ball.find_ball(opencv_image)
+    #     BallAnnotator.ball = ball_found
+    #     if ball_found is not None:
+    #         x, y, radius = ball_found
+    #         print(radius)
+
     while True:
         print(state, "Is picked up: ", robot.is_picked_up, curr_action)
 
@@ -204,23 +216,28 @@ async def run(robot: cozmo.robot.Robot):
             cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55, math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
             dtheta = math.degrees(math.atan2(dy + cx, dx + cy))
             dist = math.sqrt((dx * 25) ** 2 + (dy * 25) ** 2)
-            degrees_to_rotate = dtheta - m_h
+            # degrees_to_rotate = dtheta - m_h
 
             if state == 'searching':
                 await robot.drive_wheels(20, -20)
                 if m_confident:
                     beep()
+                    print("- - - - - - - - - - - -HEADING: ", m_h)
                     await robot.drive_wheels(0, 0)
-                    print("Turning", degrees_to_rotate)
+                    # print("Turning", degrees_to_rotate)
                     state = 'turning'
-                    curr_action = robot.turn_in_place(degrees(degrees_to_rotate))
+                    # curr_action = robot.turn_in_place(degrees(degrees_to_rotate))
+                    curr_action = robot.turn_in_place(degrees(0))
             elif state == 'turning':
                 if curr_action.is_completed:
                     beep()
                     print("Driving", max(dist / 2, 5))
                     state = 'driving'
-                    curr_action = robot.drive_straight(distance_mm(max(dist / 4, 5)), speed_mmps(75),
-                                                       should_play_anim=False)
+                    # curr_action = await robot.drive_straight(distance_mm(max(dist / 4, 5)), speed_mmps(75),
+                                                       # should_play_anim=False).wait_for_completed()
+                    curr_action = await robot.turn_in_place(degrees(-m_h)).wait_for_completed()
+                    curr_action = await robot.turn_in_place(degrees(-90)).wait_for_completed()
+                    m_h = -90
             elif state == 'driving':
                 print("in driving")
                 event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
@@ -232,10 +249,52 @@ async def run(robot: cozmo.robot.Robot):
                     print(x,y, radius) 
                     state = 'lock-in'
                 else:
-                    await robot.turn_in_place(degrees(60)).wait_for_completed()
-                    
+                    await robot.turn_in_place(degrees(50)).wait_for_completed()
+                    m_h = m_h + 50;
             elif state == 'lock-in':
                 print("lock-in")
+                event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
+                opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
+                ball_found = find_ball.find_ball(opencv_image)
+                BallAnnotator.ball = ball_found
+                if ball_found is not None:
+                    x, y, radius = ball_found
+                    dx = 320/2 - x # positive = ball is on left
+                    deg_to_turn = dx / (320.0/2.0) * 30
+                    print(deg_to_turn, "deg_to_turn")
+                    m_h = m_h + deg_to_turn
+                    await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
+                    if deg_to_turn <= 10 and deg_to_turn >= -10:
+                        state = 'align'
+            elif state == 'align':
+                angle = (360 + m_h) % 360
+                print("Angle of robot: ", angle)
+                distance_to_ball = .0023 * math.pow(radius,2) - 0.3632*radius + 16.515
+                print("Distance to ball: ", distance_to_ball)
+                print("Cozmo at: ", m_x, m_y)
+                ball_x = math.cos(math.radians(angle)) * distance_to_ball
+                ball_y = math.sin(math.radians(angle)) * distance_to_ball
+                ball_all_x = ball_x + m_x
+                ball_all_y = ball_y + m_y
+                print("MH: ", m_h)
+                if(ball_y < 0):
+                    await robot.turn_in_place(degrees(-(80-m_h))).wait_for_completed()
+                else:
+                    await robot.turn_in_place(degrees(80-m_h)).wait_for_completed()
+                print("X_ball component: ", ball_x, " Y_ball component: ", ball_y)
+                print("Position x: ", m_x + ball_x, " Position y: ", m_y + ball_y)
+                
+                # slope = (9 - ball_all_y)/(26- ball_all_x)
+                # b = 9 - (slope * 26)
+                # print("y="+str(slope)+"x+"+str(b))
+                # a = input()
+                # await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
+                # print(last_pose.rotation.angle_z.degrees)
+                # if(float(last_pose) < 0):
+                #     x_dist = math.sin(last_pose) * distance_to_ball
+                #     y_dist = math.cos(last_pose) * distance_to_ball
+                #     print(x_dist, y_dist)
+
 # Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
     def apply(self, image, scale):

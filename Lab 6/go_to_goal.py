@@ -193,11 +193,14 @@ async def run(robot: cozmo.robot.Robot):
             if state == 'searching':
                 await robot.drive_wheels(20, -20)
                 if m_confident:
+                    print(m_h)
                     beep()
                     await robot.drive_wheels(0, 0)
                     print("Turning", degrees_to_rotate)
                     state = 'turning'
+                    print("Heading: ", m_h)
                     curr_action = robot.turn_in_place(degrees(degrees_to_rotate))
+                    a = raw_input("A")
             elif state == 'turning':
                 if curr_action.is_completed:
                     beep()
