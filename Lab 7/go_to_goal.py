@@ -266,6 +266,8 @@ async def run(robot: cozmo.robot.Robot):
                     await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
                     if deg_to_turn <= 10 and deg_to_turn >= -10:
                         state = 'align'
+                if ball_found is None:
+                    state = "driving"
             elif state == 'align':
                 angle = (360 + m_h) % 360
                 print("Angle of robot: ", angle)
@@ -276,22 +278,23 @@ async def run(robot: cozmo.robot.Robot):
                 ball_y = math.sin(math.radians(angle)) * distance_to_ball
                 ball_all_x = ball_x + m_x
                 ball_all_y = ball_y + m_y
-                print("MH: ", m_h)
-                if(ball_y < 0):
-                    await robot.turn_in_place(degrees(-(80-m_h))).wait_for_completed()
-                else:
-                    await robot.turn_in_place(degrees(80-m_h)).wait_for_completed()
                 print("X_ball component: ", ball_x, " Y_ball component: ", ball_y)
                 print("Position x: ", m_x + ball_x, " Position y: ", m_y + ball_y)
 
                 slopeY = 9.0 - ball_all_y
                 slopeX = 26.0 - ball_all_x
                 slope = slopeY / slopeX
-                dx = ball_all_y - m_x
+                dx = ball_all_x - m_x
                 gX = ball_all_x - dx
                 gY = ball_all_y - dx * slope
-
-                
+                # await robot.turn_in_place(degrees(m_h)).wait_for_completed()
+                print("Values: ", slope, dx, gX, gY)
+                lat_dist = m_y - gY
+                if(lat_dist < 0):
+                    print("drive forward", lat_dist)
+                    curr_action = await robot.drive_straight(distance_mm(lat_dist * 25), speed_mmps(75)).wait_for_completed()
+                else:
+                    print("drive backward")
                 # slope = (9 - ball_all_y)/(26- ball_all_x)
                 # b = 9 - (slope * 26)
                 # print("y="+str(slope)+"x+"+str(b))
