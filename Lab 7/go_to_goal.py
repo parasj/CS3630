@@ -43,6 +43,7 @@ try:
 except ImportError:
     sys.exit('run `pip3 install --user Pillow numpy` to run this example')
 
+
 async def image_processing(robot):
     global camK, marker_size
 
@@ -106,8 +107,8 @@ def compute_odometry(curr_pose, cvt_inch=True):
 
     return (dx, dy, diff_heading_deg(curr_h, last_h))
 
-class BallAnnotator(cozmo.annotate.Annotator):
 
+class BallAnnotator(cozmo.annotate.Annotator):
     ball = None
 
     def apply(self, image, scale):
@@ -115,18 +116,18 @@ class BallAnnotator(cozmo.annotate.Annotator):
         bounds = (0, 0, image.width, image.height)
 
         if BallAnnotator.ball is not None:
+            # double size of bounding box to match size of rendered image
+            BallAnnotator.ball = np.multiply(BallAnnotator.ball, 2)
 
-            #double size of bounding box to match size of rendered image
-            BallAnnotator.ball = np.multiply(BallAnnotator.ball,2)
-
-            #define and display bounding box with params:
-            #msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
-            box = cozmo.util.ImageBox(BallAnnotator.ball[0]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[1]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[2]*2, BallAnnotator.ball[2]*2)
+            # define and display bounding box with params:
+            # msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
+            box = cozmo.util.ImageBox(BallAnnotator.ball[0] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[1] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[2] * 2, BallAnnotator.ball[2] * 2)
             cozmo.annotate.add_img_box_to_image(image, box, "green", text=None)
 
             BallAnnotator.ball = None
+
 
 # particle filter functionality
 class ParticleFilter:
@@ -149,6 +150,7 @@ class ParticleFilter:
 
 def beep():
     print("\a")
+
 
 async def run(robot: cozmo.robot.Robot):
     global flag_odom_init, last_pose
@@ -213,7 +215,8 @@ async def run(robot: cozmo.robot.Robot):
             # positional calculations
             g_x, g_y, g_theta = goal
             dx, dy = (g_x - m_x, g_y - m_y)
-            cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55, math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
+            cx, cy = (math.cos(math.radians(robot.pose.rotation.angle_z.degrees)) * .55,
+                      math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
             dtheta = math.degrees(math.atan2(dy + cx, dx + cy))
             dist = math.sqrt((dx * 25) ** 2 + (dy * 25) ** 2)
             # degrees_to_rotate = dtheta - m_h
@@ -234,7 +237,7 @@ async def run(robot: cozmo.robot.Robot):
                     print("Driving", max(dist / 2, 5))
                     state = 'driving'
                     # curr_action = await robot.drive_straight(distance_mm(max(dist / 4, 5)), speed_mmps(75),
-                                                       # should_play_anim=False).wait_for_completed()
+                    # should_play_anim=False).wait_for_completed()
                     curr_action = await robot.turn_in_place(degrees(-m_h)).wait_for_completed()
                     curr_action = await robot.turn_in_place(degrees(-90)).wait_for_completed()
                     m_h = -90
@@ -246,7 +249,7 @@ async def run(robot: cozmo.robot.Robot):
                 BallAnnotator.ball = ball_found
                 if ball_found is not None:
                     x, y, radius = ball_found
-                    print(x,y, radius) 
+                    print(x, y, radius)
                     state = 'lock-in'
                 else:
                     await robot.turn_in_place(degrees(50)).wait_for_completed()
@@ -259,8 +262,8 @@ async def run(robot: cozmo.robot.Robot):
                 BallAnnotator.ball = ball_found
                 if ball_found is not None:
                     x, y, radius = ball_found
-                    dx = 320/2 - x # positive = ball is on left
-                    deg_to_turn = dx / (320.0/2.0) * 30
+                    dx = 320 / 2 - x  # positive = ball is on left
+                    deg_to_turn = dx / (320.0 / 2.0) * 30
                     print(deg_to_turn, "deg_to_turn")
                     m_h = m_h + deg_to_turn
                     await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
@@ -271,7 +274,7 @@ async def run(robot: cozmo.robot.Robot):
             elif state == 'align':
                 angle = (360 + m_h) % 360
                 print("Angle of robot: ", angle)
-                distance_to_ball = .0023 * math.pow(radius,2) - 0.3632*radius + 16.515
+                distance_to_ball = .0023 * math.pow(radius, 2) - 0.3632 * radius + 16.515
                 print("Distance to ball: ", distance_to_ball)
                 print("Cozmo at: ", m_x, m_y)
                 ball_x = math.cos(math.radians(angle)) * distance_to_ball
@@ -287,24 +290,32 @@ async def run(robot: cozmo.robot.Robot):
                 dx = ball_all_x - m_x
                 gX = ball_all_x - dx
                 gY = ball_all_y - dx * slope
+
                 # await robot.turn_in_place(degrees(m_h)).wait_for_completed()
                 print("Values: ", slope, dx, gX, gY)
                 lat_dist = m_y - gY
-                if(lat_dist < 0):
+                if (lat_dist < 0):
                     print("drive forward", lat_dist)
-                    curr_action = await robot.drive_straight(distance_mm(lat_dist * 25), speed_mmps(75)).wait_for_completed()
+                    curr_action = await robot.turn_in_place(degrees(-m_h - 90)).wait_for_completed()
+                    curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
+                                                             speed_mmps(75)).wait_for_completed()
                 else:
+                    curr_action = await robot.turn_in_place(degrees(-m_h + 90)).wait_for_completed()
+                    curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
+                                                             speed_mmps(75)).wait_for_completed()
                     print("drive backward")
-                # slope = (9 - ball_all_y)/(26- ball_all_x)
-                # b = 9 - (slope * 26)
-                # print("y="+str(slope)+"x+"+str(b))
-                # a = input()
-                # await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
-                # print(last_pose.rotation.angle_z.degrees)
-                # if(float(last_pose) < 0):
-                #     x_dist = math.sin(last_pose) * distance_to_ball
-                #     y_dist = math.cos(last_pose) * distance_to_ball
-                #     print(x_dist, y_dist)
+
+                    # slope = (9 - ball_all_y)/(26- ball_all_x)
+                    # b = 9 - (slope * 26)
+                    # print("y="+str(slope)+"x+"+str(b))
+                    # a = input()
+                    # await robot.turn_in_place(cozmo.util.Angle(degrees=(-1 * m_h))).wait_for_completed()
+                    # print(last_pose.rotation.angle_z.degrees)
+                    # if(float(last_pose) < 0):
+                    #     x_dist = math.sin(last_pose) * distance_to_ball
+                    #     y_dist = math.cos(last_pose) * distance_to_ball
+                    #     print(x_dist, y_dist)
+
 
 # Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
@@ -315,9 +326,9 @@ class BatteryAnnotator(cozmo.annotate.Annotator):
         text = cozmo.annotate.ImageText('BATT %.1fv' % batt, color='green')
         text.render(d, bounds)
 
+
 # Define a decorator as a subclass of Annotator; displays the ball
 class BallAnnotator(cozmo.annotate.Annotator):
-
     ball = None
 
     def apply(self, image, scale):
@@ -325,18 +336,18 @@ class BallAnnotator(cozmo.annotate.Annotator):
         bounds = (0, 0, image.width, image.height)
 
         if BallAnnotator.ball is not None:
+            # double size of bounding box to match size of rendered image
+            BallAnnotator.ball = np.multiply(BallAnnotator.ball, 2)
 
-            #double size of bounding box to match size of rendered image
-            BallAnnotator.ball = np.multiply(BallAnnotator.ball,2)
-
-            #define and display bounding box with params:
-            #msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
-            box = cozmo.util.ImageBox(BallAnnotator.ball[0]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[1]-BallAnnotator.ball[2],
-                                      BallAnnotator.ball[2]*2, BallAnnotator.ball[2]*2)
+            # define and display bounding box with params:
+            # msg.img_topLeft_x, msg.img_topLeft_y, msg.img_width, msg.img_height
+            box = cozmo.util.ImageBox(BallAnnotator.ball[0] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[1] - BallAnnotator.ball[2],
+                                      BallAnnotator.ball[2] * 2, BallAnnotator.ball[2] * 2)
             cozmo.annotate.add_img_box_to_image(image, box, "green", text=None)
 
             BallAnnotator.ball = None
+
 
 class CozmoThread(threading.Thread):
     def __init__(self):
@@ -351,7 +362,7 @@ if __name__ == '__main__':
     # cozmo thread
     # cozmo_thread = CozmoThread()
     # cozmo_thread.start()
-    cozmo.run_program(run, use_viewer = True, force_viewer_on_top = True)
+    cozmo.run_program(run, use_viewer=True, force_viewer_on_top=True)
     # init
     # grid = CozGrid(Map_filename)
     # gui = GUIWindow(grid)
