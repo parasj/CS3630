@@ -312,7 +312,7 @@ async def run(robot: cozmo.robot.Robot):
                     state = 'searching'
             elif state == 'kick_drive':
                 print("My position x: ", m_x)
-                curr_action = await robot.set_lift_height(.6).wait_for_completed()
+                curr_action = await robot.set_lift_height(.56).wait_for_completed()
                 curr_action = await robot.drive_straight(distance_mm((26.5 - m_x) * 25),
                                                              speed_mmps(110)).wait_for_completed()
                 curr_action = await robot.set_lift_height(1).wait_for_completed()
