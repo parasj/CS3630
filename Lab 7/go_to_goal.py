@@ -257,7 +257,8 @@ async def run(robot: cozmo.robot.Robot):
                     if deg_to_turn <= 10 and deg_to_turn >= -10:
                         state = 'align'
                 if ball_found is None:
-                    state = "driving"
+                    # startFresh = 
+                    state = "searching"
             elif state == 'align':
                 angle = (360 + m_h) % 360
                 print("Angle of robot: ", angle)
@@ -316,7 +317,7 @@ async def run(robot: cozmo.robot.Robot):
                 curr_action = await robot.drive_straight(distance_mm((26.5 - m_x) * 25),
                                                              speed_mmps(110)).wait_for_completed()
                 curr_action = await robot.set_lift_height(1).wait_for_completed()
-                curr_action = await robot.drive_straight(distance_mm((-16) * 25),
+                curr_action = await robot.drive_straight(distance_mm((-17) * 25),
                                                              speed_mmps(140)).wait_for_completed()
                 curr_action = await robot.set_lift_height(0).wait_for_completed()
                 startFresh = True
