@@ -299,11 +299,13 @@ async def run(robot: cozmo.robot.Robot):
                     curr_action = await robot.turn_in_place(degrees(-m_h - 90)).wait_for_completed()
                     curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
                                                              speed_mmps(75)).wait_for_completed()
+                    curr_action = await robot.turn_in_place(degrees(90)).wait_for_completed()
                 else:
                     print("drive backward", lat_dist)
                     curr_action = await robot.turn_in_place(degrees(-m_h + 90)).wait_for_completed()
                     curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
                                                              speed_mmps(75)).wait_for_completed()
+                    curr_action = await robot.turn_in_place(degrees(-90)).wait_for_completed()
                 state = 'kick_align'
             elif state == 'kick_align':
                 event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
@@ -317,7 +319,7 @@ async def run(robot: cozmo.robot.Robot):
                     print(deg_to_turn, "deg_to_turn")
                     m_h += deg_to_turn
                     await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
-                    if 5 >= deg_to_turn >= -5:
+                    if 3 >= deg_to_turn >= -3:
                         state = 'kick_drive'
             elif state == 'kick_drive':
                 if math.sqrt((m_x - 26) ** 2 + (m_y - 9) ** 2) < 1:
@@ -326,9 +328,8 @@ async def run(robot: cozmo.robot.Robot):
                                                              speed_mmps(75)).wait_for_completed()
                     state = 'searching'
                 else:
-                    curr_action = await robot.drive_straight(distance_mm(50),
-                                                         speed_mmps(75)).wait_for_completed()
-                    state = 'kick_align'
+                    dist_to_ball = math.sqrt((m_x - 26) ** 2 + (m_y - 9) ** 2)
+                    curr_action = await robot.drive_straight(distance_mm(dist_to_ball * 25 - 50), speed_mmps(500)).wait_for_completed()
 
 # Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
