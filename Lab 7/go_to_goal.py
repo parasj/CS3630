@@ -171,17 +171,7 @@ async def run(robot: cozmo.robot.Robot):
     robot.world.image_annotator.add_annotator('battery', BatteryAnnotator)
     robot.world.image_annotator.add_annotator('ball', BallAnnotator)
 
-    '''
-    Determine distance
-    '''
-    # while True:
-    #     event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
-    #     opencv_image = cv2.cvtColor(np.asarray(event.image), cv2.COLOR_RGB2GRAY)
-    #     ball_found = find_ball.find_ball(opencv_image)
-    #     BallAnnotator.ball = ball_found
-    #     if ball_found is not None:
-    #         x, y, radius = ball_found
-    #         print(radius)
+    startFresh = False
 
     while True:
         print(state, "Is picked up: ", robot.is_picked_up, curr_action)
@@ -189,8 +179,10 @@ async def run(robot: cozmo.robot.Robot):
         if abs(robot.head_angle.degrees) > 5:
             await robot.set_head_angle(degrees(0)).wait_for_completed()
 
-        if robot.is_picked_up:  # Begin search agent again -> add particles?
+        if robot.is_picked_up or startFresh == True:  # Begin search agent again -> add particles?
+            print("Starting again")
             pf.particles = Particle.create_random(PARTICLE_COUNT, grid)
+            startFresh = False
             state = 'searching'
             curr_action = None
             await robot.set_head_angle(degrees(0)).wait_for_completed()
@@ -219,28 +211,23 @@ async def run(robot: cozmo.robot.Robot):
                       math.sin(math.radians(robot.pose.rotation.angle_z.degrees)) * .55)
             dtheta = math.degrees(math.atan2(dy + cx, dx + cy))
             dist = math.sqrt((dx * 25) ** 2 + (dy * 25) ** 2)
-            # degrees_to_rotate = dtheta - m_h
 
             if state == 'searching':
-                await robot.drive_wheels(20, -20)
+                await robot.drive_wheels(30, -30)
                 if m_confident:
                     beep()
                     print("- - - - - - - - - - - -HEADING: ", m_h)
                     await robot.drive_wheels(0, 0)
-                    # print("Turning", degrees_to_rotate)
                     state = 'turning'
-                    # curr_action = robot.turn_in_place(degrees(degrees_to_rotate))
                     curr_action = robot.turn_in_place(degrees(0))
             elif state == 'turning':
                 if curr_action.is_completed:
                     beep()
-                    print("Driving", max(dist / 2, 5))
                     state = 'driving'
-                    # curr_action = await robot.drive_straight(distance_mm(max(dist / 4, 5)), speed_mmps(75),
-                    # should_play_anim=False).wait_for_completed()
+                    print(m_h)
                     curr_action = await robot.turn_in_place(degrees(-m_h)).wait_for_completed()
-                    curr_action = await robot.turn_in_place(degrees(-90)).wait_for_completed()
-                    m_h = -90
+                    curr_action = await robot.turn_in_place(degrees(-45)).wait_for_completed()
+                    m_h = -45
             elif state == 'driving':
                 print("in driving")
                 event = await robot.world.wait_for(cozmo.camera.EvtNewRawCameraImage, timeout=30)
@@ -291,7 +278,6 @@ async def run(robot: cozmo.robot.Robot):
                 gX = ball_all_x - dx
                 gY = ball_all_y - dx * slope
 
-                # await robot.turn_in_place(degrees(m_h)).wait_for_completed()
                 print("Values: ", slope, dx, gX, gY)
                 lat_dist = m_y - gY
                 if (lat_dist < 0):
@@ -303,7 +289,7 @@ async def run(robot: cozmo.robot.Robot):
                 else:
                     print("drive backward", lat_dist)
                     curr_action = await robot.turn_in_place(degrees(-m_h + 90)).wait_for_completed()
-                    curr_action = await robot.drive_straight(distance_mm(lat_dist * 25),
+                    curr_action = await robot.drive_straight(distance_mm(-lat_dist * 25),
                                                              speed_mmps(75)).wait_for_completed()
                     curr_action = await robot.turn_in_place(degrees(-90)).wait_for_completed()
                 state = 'kick_align'
@@ -321,15 +307,20 @@ async def run(robot: cozmo.robot.Robot):
                     await robot.turn_in_place(degrees(deg_to_turn)).wait_for_completed()
                     if 3 >= deg_to_turn >= -3:
                         state = 'kick_drive'
-            elif state == 'kick_drive':
-                if math.sqrt((m_x - 26) ** 2 + (m_y - 9) ** 2) < 1:
-                    curr_action = await robot.turn_in_place(degrees(-m_h + 180)).wait_for_completed()
-                    curr_action = await robot.drive_straight(distance_mm((m_x - 6.0) * 25),
-                                                             speed_mmps(75)).wait_for_completed()
-                    state = 'searching'
                 else:
-                    dist_to_ball = math.sqrt((m_x - 26) ** 2 + (m_y - 9) ** 2)
-                    curr_action = await robot.drive_straight(distance_mm(dist_to_ball * 25 - 50), speed_mmps(500)).wait_for_completed()
+                    # startFresh = True
+                    state = 'searching'
+            elif state == 'kick_drive':
+                print("My position x: ", m_x)
+                curr_action = await robot.set_lift_height(.6).wait_for_completed()
+                curr_action = await robot.drive_straight(distance_mm((26.5 - m_x) * 25),
+                                                             speed_mmps(110)).wait_for_completed()
+                curr_action = await robot.set_lift_height(1).wait_for_completed()
+                curr_action = await robot.drive_straight(distance_mm((-16) * 25),
+                                                             speed_mmps(140)).wait_for_completed()
+                curr_action = await robot.set_lift_height(0).wait_for_completed()
+                startFresh = True
+                state = 'searching'
 
 # Define a decorator as a subclass of Annotator; displays battery voltage
 class BatteryAnnotator(cozmo.annotate.Annotator):
@@ -373,11 +364,4 @@ class CozmoThread(threading.Thread):
 
 
 if __name__ == '__main__':
-    # cozmo thread
-    # cozmo_thread = CozmoThread()
-    # cozmo_thread.start()
     cozmo.run_program(run, use_viewer=True, force_viewer_on_top=True)
-    # init
-    # grid = CozGrid(Map_filename)
-    # gui = GUIWindow(grid)
-    # gui.start()
